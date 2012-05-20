@@ -1,12 +1,4 @@
-// ==ClosureCompiler==
-// @compilation_level ADVANCED_OPTIMIZATIONS
-// @warning_level VERBOSE
-// @jscomp_warning missingProperties
-// @output_file_name history.js
-// @check_types
-// ==/ClosureCompiler==
-
-/*
+/** @license
  * history API JavaScript Library v3.0.1 beta
  *
  * Support: IE6+, FF3+, Opera 9+, Safari, Chrome
@@ -22,13 +14,25 @@
  * Update: 18-05-2012
  * 
  * Forked https://github.com/termi | 19-05-2012
+ *
+ * TODO:
+ *  1. Optional shims for IE < 9
+ *  2. first onpopstate after page load fix in Chome and Safary (addEventListener already fixed)
  */
 
-/** define {boolean} */
+// ==ClosureCompiler==
+// @compilation_level ADVANCED_OPTIMIZATIONS
+// @warning_level VERBOSE
+// @jscomp_warning missingProperties
+// @output_file_name history.js
+// @check_types
+// ==/ClosureCompiler==
+
+/** @define {boolean} */
 var SUPPORT_IELT9 = true;
-/** define {boolean} */
+/** @define {boolean} */
 var JSON_POLLIFIL = false;
-/** define {boolean} */
+/** @define {boolean} */
 var IELT9_SHIM = false;
 /*
 if SUPPORT_IELT9 == TRUE
@@ -38,13 +42,16 @@ if SUPPORT_IELT9 == TRUE
 // CONFIG
 /** @type {string} @conts */
 var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
+/** @type {string} @conts */
+var SESSION_STORAGE_KEY = '__hitoryapi__';
 // END CONFIG
 
 ;(function( window ){
 
-	"use strict";
+	"use 1strict";
 
 	//IELT9_SHIM == true
+	/*TODO::
 	if(IELT9_SHIM) {
 		var _window_addEventListener = window.addEventListener
 		  , _Object_defineProperties = Object.defineProperties
@@ -60,7 +67,8 @@ var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 			_type = "on" + _type;
 			window.attachEvent(_type, _handler);
 		}
-	}
+		function(a,b,c,d){a=a||document;d=a[b="on"+b];b=a[b]=function(e){d=d&&d(e=e||a.event);return(c=c&&b(e))?b:d};a=this}
+	}*/
 	//end IELT9_SHIM == true
 
 	var
@@ -90,7 +98,7 @@ var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 	  , windowLocation = window.location
 
 		// Check support HTML5 History API
-	  , api = !!windowHistory.pushState
+	  , api = "pushState" in windowHistory
 
 		// If the first event is triggered when the page loads
 		// This behavior is obvious for Chrome and Safari
@@ -357,6 +365,12 @@ var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 				Object.defineProperties(obj, props);
 			}
 			catch( _e_ ) {
+				if(obj.__defineGetter__) {//Safary phink that he has "state" and "location" properties in 'history' object
+					for(var prop in props) if(_hasOwnProperty(props, prop)) {
+						obj.__defineGetter__(prop, props[prop].get);
+						if(props[prop].set)obj.__defineSetter__(prop, props[prop].set);
+					}
+				}
 				if ( novb ) {
 					return 0;
 				}
@@ -448,8 +462,8 @@ var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 		 * @param {Object=} state
 		 */
 	  , historyStorage = function( state ) {
-			return sessionStorage ? state ? sessionStorage.setItem( '__hitoryapi__', JSONStringify( state ) ) :
-					JSONParse( sessionStorage.getItem( '__hitoryapi__' ) ) || {} : {};
+			return sessionStorage ? state ? sessionStorage.setItem( SESSION_STORAGE_KEY, JSONStringify( state ) ) :
+					JSONParse( sessionStorage.getItem( SESSION_STORAGE_KEY ) ) || {} : {};
 		}
 
 	  , hashChanged = (function() {
@@ -477,11 +491,10 @@ var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 				}
 
 				var
-					oldUrl = e["oldURL"] || oldURL,
-					newUrl = oldURL = e["newURL"] || History.location.href,
+					oldUrl = e.oldURL || oldURL,
+					newUrl = oldURL = e.newURL || History.location.href,
 					oldHash = oldUrl.replace( /^.*?(#|$)/, "" ),
-					newHash = newUrl.replace( /^.*?(#|$)/, "" ),
-					hashChangeEvent;
+					newHash = newUrl.replace( /^.*?(#|$)/, "" );
 
 				if ( oldUrl != newUrl && !popstateFired ) {
 					// fire popstate
@@ -494,10 +507,11 @@ var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 
 			window.addEventListener( "hashchange", change );
 
-			window.addEventListener( "popstate", function() {
+			window.addEventListener( "popstate", function(e) {
 
 				// popstate ignore the event when the document is loaded
 				if ( initialFire === windowLocation.href ) {
+					e.stopImmediatePropagation();
 					return initialFire = 0;
 				}
 
@@ -734,7 +748,7 @@ var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 				}
 			}
 
-			window.addEventListener( "unload", function() {
+			window.attachEvent( "unload", function() {
 				if ( iframe["storage"] ) {
 					var state = {};
 					state[ normalizeUrl().full ] = iframe["storage"];
