@@ -48,7 +48,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 
 ;(function( window ){
 
-	"use 1strict";
+	"use strict";
 
 	//IELT9_SHIM == true
 	/*TODO::
