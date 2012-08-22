@@ -1,30 +1,13 @@
 /*
-
- history API JavaScript Library v3.0.1 beta
-
- Support: IE6+, FF3+, Opera 9+, Safari, Chrome
-
- Copyright 2011-2012, Dmitriy Pakhtinov ( spb.piksel@gmail.com )
-
- http://spb-piksel.ru/
-
- Dual licensed under the MIT and GPL licenses:
-   http://www.opensource.org/licenses/mit-license.php
-   http://www.gnu.org/licenses/gpl.html
-
- Update: 18-05-2012
-
- Forked https://github.com/termi | 19-05-2012
-
- TODO:
-  1. Optional shims for IE < 9
-  2. first onpopstate after page load fix in Chome and Safary (addEventListener already fixed)
-*/
-;(function(c){"use strict";var p=null;function u(a){return t?a?t.setItem("__hitoryapi__",E(a)):F(t.getItem("__hitoryapi__"))||{}:{}}function v(a,b,d){try{Object.defineProperties(a,b)}catch(h){if(a.__defineGetter__)for(var e in b)G(b,e)&&(a.__defineGetter__(e,b[e].get),b[e].set&&a.__defineSetter__(e,b[e].set));if(d)return 0}return a}function f(a){var l,d,h=b.href.split("#");l=(h.shift(),"#"+h.join("#"));var h=(l||"#").replace(RegExp("^#[/]?(?:"+k.type+")?"),""),e=(l=h.split("#")).shift(),c=k.basepath+h,g=(d=(k.basepath+e).split("?")).shift(),
-f=d.join("?");d=a&&a.substring(0,1);var i=b.protocol+"//"+b.host,r=i;l=(0<l.length?"#":"")+l.join("#");a&&(g=j?b.pathname:g,r=/[a-z]+\:\/\//.test(a)?a:"/"===d?r+a:"?"===d?r+((0===g.indexOf("/")?"":"/")+g+a):"#"===d?(j?b.href:i+c).split("#").shift()+a:r+((0===g.indexOf("/")?"":"/")+g.replace(/[^\/]+$/g,"")+a));d=RegExp("^"+i+k.basepath+"(.*)","i").exec(a?r:i+c);return{e:h,c:k.type+e,href:c,pathname:g,search:f?"?"+f:"",hash:l,b:i+c,d:r,a:d&&d[1]||""}}"use 1strict";var A=Function.prototype.bind||function(a,
-b){var d=this,c=z.call(arguments,1);return function(){return _Function_apply.call(d,a,c.concat(z.call(arguments)))}},z=Array.prototype.slice,G=A.call(Function.prototype.call,Object.prototype.hasOwnProperty),n=c.history||{},b=c.location,j="pushState"in n,H=j&&void 0===n.state,q=b.href,B=n.pushState,C=n.replaceState,F=JSON.parse,E=JSON.stringify,t=c.sessionStorage,w=0,k=function(a,b){if(b){if(m=b.src.split("?")[1])for(var d=0,c=m.split("&");c[d];)m=c[d++].split("="),a[m[0]]="true"==m[1]?1:"false"==
-m[1]?0:m[1]||"";b.id=""}return a}({basepath:"/",redirect:0,type:"/"},document.getElementById("history_uuid_8vhax7l")),o=n||!1,I={get:function(){return u()[o.location.href]||p}},D={set:function(a){c.location=a},get:function(){return j?b:x}},x={assign:function(a){b.assign(j||0!==a.indexOf("#")?a:"#"+f().c+a)},reload:b.reload,replace:function(a){b.replace(j||0!==a.indexOf("#")?a:"#"+f().c+a)},toString:function(){return this.href}},J={href:{set:function(a){b.href=a},get:function(){return f().b}},protocol:{set:function(a){b.protocol=
-a},get:function(){return b.protocol}},host:{set:function(a){b.host=a},get:function(){return b.host}},hostname:{set:function(a){b.hostname=a},get:function(){return b.hostname}},port:{set:function(a){b.port=a},get:function(){return b.port}},pathname:{set:function(a){b.pathname=a},get:function(){return f().pathname}},search:{set:function(a){b.search=a},get:function(){return f().search}},hash:{set:function(a){var a=0===a.indexOf("#")?a:"#"+a,c=f();b.hash="#"+c.c+a},get:function(){return f().hash}}};(function(){function a(a){if(w)return e=
-f().b,w=0;var b=a.oldURL||e,a=e=a.newURL||o.location.href;b.replace(/^.*?(#|$)/,"");a.replace(/^.*?(#|$)/,"");b!=a&&!h&&c.dispatchEvent(new Event("popstate"));q=h=0}var l=c.onpopstate||p,d=c.onhashchange||p,h=0,e=j?b.href:f().b;(j?b.hash:f().hash).replace(/^#/,"");c.addEventListener("hashchange",a);c.addEventListener("popstate",function(a){if(q===b.href)return a.stopImmediatePropagation(),q=0;q=0;h=1});o=v(o,void 0===n.state?{state:I,location:D}:{location:D});x=v(x,J);"onpopstate"in c||v(c,{onhashchange:{get:function(){return d},
-set:function(a){d=a||p}},onpopstate:{get:function(){return l},set:function(a){if(l=a||p)if(!j&&q&&!(q=0)&&f().href!==k.basepath)clearInterval(p),setTimeout(A.call(c.dispatchEvent,c,new Event("popstate")),10)}}},!0);if(k.redirect&&0===c.parent.frames.length){var y=f(),g=b.search,s=b.pathname,i=k.basepath;if(j){if(y.href!=i&&RegExp("^"+i+"$","i").test(s)&&(b.href=y.href),!RegExp("^"+i,"i").test(s))b.href=s.replace(/^\//,i)+g}else s!=i&&(b.href=i+"#"+s.replace(RegExp("^"+i,"i"),k.type)+g+b.hash)}return a})();
-o.pushState=function(a,c,d,h){var e=u(),n=o.location.href,g=d&&f(d);q=0;d=g?g.d:n;h&&e[n]&&delete e[n];if((!j||H)&&t&&a)e[d]=a,u(e),a=p;B&&C?h?C.call(o,a,c,d):B.call(o,a,c,d):g&&g.a!=f().a&&(w=1,h?b.replace("#"+k.type+g.a):b.hash=k.type+g.a)};o.replaceState=function(a,b,c){o.pushState(a,b,c,1)};c.history.emulate=!j})(window);
+ * Copyright 2011-2012, Dmitriy Pakhtinov ( spb.piksel@gmail.com ) and github.com/termi */
+;(function(){"use strict";
+var b=null,e=window,f=e.JSON||{},i=Function.prototype.bind||!1,j=i.call(Function.prototype.call,Object.prototype.hasOwnProperty),k=e.history||{},l=e.location,m="pushState"in k,n=m&&void 0===k.state,p=l.href,r=k.pushState,s=k.replaceState,t=f.parse,u=f.stringify,v=e.sessionStorage,w=0,x=/[^\/]+$/g,y=location.pathname.split("#")[0].split("?")[0],z,A=document.createElement("a"),B,C,E,F,G,H,I,J=/^[^#]*/,K=/^#[\/]?(?:\/)?/,L=/^(?:[a-z]+\:)?\/\//;
+z=function(a,c){if(a){if(!m)var d=z(),g=d.d,h=d.h,o=a.charAt(0),a=L.test(a)?"/"==o?h+a:a:h+"//"+d.g+("/"==o?a:"?"==o?g+a:"#"==o?g+d.e+a:g.replace(x,"")+a)}else if(a=l.href,!m||c)a=l.protocol+"//"+l.host+(-1!=a.indexOf("#")?"/":y)+a.replace(J,"").replace(K,"");if(B!==a){A.href=B=a;H=A.port;G=A.host;I=A.pathname;if("http:"===A.protocol&&80==H||"https:"===A.protocol&&443==H)G=A.hostname,H="";I="/"==I.charAt(0)?I:"/"+I;C=I+A.search+A.hash;F=I+A.search;E=F+A.hash}return{a:A.protocol+"//"+G+C,h:A.protocol,
+g:G,i:A.hostname||l.hostname,j:H||l.port,d:I,e:A.search,f:A.hash,b:C,c:F,k:E}};var M=k||!1,O={get:function(){return N()[M.location.href]||b}},Q={set:function(a){e.location=a},get:function(){return m?l:P}},P={assign:function(a){l.assign(m||0!==a.indexOf("#")?a:"#"+z().c+a)},reload:l.reload,replace:function(a){l.replace(m||0!==a.indexOf("#")?a:"#"+z().c+a)},toString:function(){return this.href}};
+function R(a,c,d){try{if(Object.defineProperty.ielt8)throw Error;Object.defineProperties(a,c)}catch(g){if(a.__defineGetter__)for(var h in c)j(c,h)&&(a.__defineGetter__(h,c[h].get),c[h].set&&a.__defineSetter__(h,c[h].set));if(d)return!1}return a}function N(a){return v?a?v.setItem("__hitoryapi__",u(a)):t(v.getItem("__hitoryapi__"))||{}:{}}
+function S(a,c,d){var g=new Event(2==a?"hashchange":"popstate");g.oldUrl=c||"";g.newUrl=d||"";g.__history_shim__=!0;if(!m&&2!=a&&e.onpopstate)e.onpopstate(g);e.dispatchEvent(g)}function T(a){p===l.href&&(a.stopImmediatePropagation(),p=0);e.removeEventListener("popstate",T)}var U=e.onpopstate||b,V=e.onhashchange||b,W=0,X=z(),Y=/^.*?(#|$)/,Z=X.a;
+e.addEventListener("hashchange",function(a){if(!a.__history_shim__){var c=z();if(w)return Z=c.a,w=0;var d=a.oldURL||Z,a=Z=a.newURL||c.a,c=d.replace(Y,""),g=a.replace(Y,"");d!=a&&!W&&S(void 0,d,a);p=W=0;c!=g&&S(2,d,a)}});e.addEventListener("popstate",T);e.addEventListener("popstate",function(){p=0;W=1});M=R(M,void 0===k.state?{state:O,location:Q}:{location:Q});
+P=R(P,{href:{set:function(a){l.href=a},get:function(){return z().a}},protocol:{set:function(a){l.protocol=a},get:function(){return l.protocol}},host:{set:function(a){l.host=a},get:function(){return l.host}},hostname:{set:function(a){l.hostname=a},get:function(){return l.hostname}},port:{set:function(a){l.port=a},get:function(){return l.port}},pathname:{set:function(a){l.pathname=a},get:function(){return z().d}},search:{set:function(a){l.search=a},get:function(){return z().e}},hash:{set:function(a){var a=
+0===a.indexOf("#")?a:"#"+a,c=z();l.hash="#"+c.c+a},get:function(){return z().f}},origin:{}});"onpopstate"in e||R(e,{onhashchange:{get:function(){return V},set:function(a){V=a||b}},onpopstate:{get:function(){return U},set:function(a){if(U=a||b)if(!m&&p&&!(p=0)&&X.b!==y)clearInterval(b),setTimeout(i.call(S),10)}}},!0);
+M.pushState=function(a,c,d,g){var h=N(),o=z(),D=o.a,q=d&&z(d);p=0;d=q?q.a:D;g&&h[D]&&delete h[D];if((!m||n)&&v&&a)h[d]=a,N(h),a=b;r&&s?g?s.call(M,a,c,d):r.call(M,a,c,d):q&&q.b!=o.b&&(w=1,g?l.replace("#/"+q.b):l.hash="/"+q.b)};M.replaceState=function(a,c,d){M.pushState(a,c,d,1)};e.history.emulate=!m;
+})();

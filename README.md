@@ -1,6 +1,8 @@
 ENGLISH
 =============================================================================================================
 
+### This version required [ES5 and DOM shim](https://github.com/termi/ES5-DOM-SHIM). For version without this required see [HTML5-History-API](https://github.com/devote/HTML5-History-API)
+
 This Javascript library provides an emulation of HTML5 History API for older browsers.
 
 The library operates according to W3C specification, adding no new or incompatible methods. The library can be used exactly as described, for example, in Dive Into HTML5 book (http://diveintohtml5.info/history.html) or in the History API Specification (http://www.w3.org/TR/html5/history.html#the-history-interface).
