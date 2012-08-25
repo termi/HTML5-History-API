@@ -1,4 +1,4 @@
-/** @license * Copyright 2011-2012, Dmitriy Pakhtinov ( spb.piksel@gmail.com ) and github.com/termi */
+/** @license Copyright 2011-2012, Dmitriy Pakhtinov ( spb.piksel@gmail.com ) and github.com/termi */
 /*
  * history API JavaScript Library v3.0.1 beta
  *
