@@ -658,7 +658,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 				}, 100);
 			}
 
-			if ( __GCC__LIBRARY_INTERNAL_SETTINGS__ && libraryInternalSettings["redirect"] && global.parent.frames.length === 0 ) {
+			if ( __GCC__LIBRARY_INTERNAL_SETTINGS__ && libraryInternalSettings["redirect"] && global.top == global.self ) {
 
 				var
 					relative = normalizeUrl(null, true)._relative,
