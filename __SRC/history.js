@@ -886,17 +886,23 @@ void function( ){
 	}
 
 	if( __GCC__IELT9_SHIM__ && !global.addEventListener ) {
-		IElt10_events = {};
+		IElt10_events = {
+			"popstate": {}
+			, "hashchange": {}
+		};
+		IElt10_events["onpopstate"] = IElt10_events["popstate"];
+		IElt10_events["onhashchange"] = IElt10_events["hashchange"];
+		if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
+			IElt10_events["on" + __GCC__CUSTOM_PAGE_CHANGE_EVENT__] = IElt10_events[__GCC__CUSTOM_PAGE_CHANGE_EVENT__] = {};
+		}
 
 		global.attachEvent = _unSafeBind.call(function(originalAttachEvent, eventName, handler) {
 			var uuid
 				, handlers
 			;
 
-			if( eventName == "popstate" || eventName == "hashchange" || (__GCC__CUSTOM_PAGE_CHANGE_EVENT__ && eventName == __GCC__CUSTOM_PAGE_CHANGE_EVENT__) ) {
-				if( !(handlers = IElt10_events[eventName]) ) {
-					handlers = IElt10_events[eventName] = {};
-				}
+			if( eventName in IElt10_events ) {
+				handlers = IElt10_events[eventName];
 
 				if( !(uuid = handler["uuid"]) ) {
 					uuid = handler["uuid"] = "_" + +new Date();
@@ -915,7 +921,7 @@ void function( ){
 				, handlers
 			;
 
-			if( eventName == "popstate" || eventName == "hashchange" || (__GCC__CUSTOM_PAGE_CHANGE_EVENT__ && eventName == __GCC__CUSTOM_PAGE_CHANGE_EVENT__) ) {
+			if( eventName in IElt10_events ) {
 				uuid = handler["uuid"];
 
 				if( uuid
