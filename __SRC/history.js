@@ -584,11 +584,13 @@ void function( ){
 					global.dispatchEvent(newEvent);
 				}
 				else {
-					var _func;
-					for(var i in IElt10_events) {
-						if( IElt10_events.hasOwnProperty(i)
+					var _func
+						, handlers = IElt10_events[newEvent.type]
+					;
+					if( handlers ) for(var i in handlers) {
+						if( handlers.hasOwnProperty(i)
 							&& (
-								typeof (_func = IElt10_events[i] == "function")
+								typeof (_func = handlers[i]) == "function"
 								|| (_func && (typeof _func == "object") && (_func = _func.handleEvent))
 							)
 						) {
@@ -886,7 +888,7 @@ void function( ){
 	if( __GCC__IELT9_SHIM__ && !global.addEventListener ) {
 		IElt10_events = {};
 
-		global.attachEvent = _unSafeBind(function(originalAttachEvent, eventName, handler) {
+		global.attachEvent = _unSafeBind.call(function(originalAttachEvent, eventName, handler) {
 			var uuid
 				, handlers
 			;
@@ -906,9 +908,9 @@ void function( ){
 			else {
 				_Function_call_.call(originalAttachEvent, global, eventName, handler);
 			}
-		}, global.attachEvent);
+		}, global, global.attachEvent);
 
-		global.detachEvent = _unSafeBind(function(originalDetachEvent, eventName, handler) {
+		global.detachEvent = _unSafeBind.call(function(originalDetachEvent, eventName, handler) {
 			var uuid
 				, handlers
 			;
@@ -925,7 +927,7 @@ void function( ){
 			else {
 				_Function_call_.call(originalDetachEvent, global, eventName, handler);
 			}
-		}, global.detachEvent);
+		}, global, global.detachEvent);
 	}
 
 	History.pushState = function( state, title, url, replace ) {
