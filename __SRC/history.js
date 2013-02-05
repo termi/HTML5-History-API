@@ -37,9 +37,9 @@ var __GCC__SUPPORT_IELT9__ = true;
 /** @define {boolean} */
 var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
 	/** @define {boolean} */
-	var __GCC__SOME_ECMA_SCRIPT_SHIM__ = false;
+	var __GCC__SOME_ECMA_SCRIPT_SHIM__ = true;
 	/** @define {boolean} */
-	var __GCC__JSON_POLLIFIL__ = false;
+	var __GCC__JSON_POLLIFIL__ = true;
 
 var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
 // [[[|||---=== GCC DEFINES END ===---|||]]]
@@ -802,8 +802,8 @@ void function( ){
 
 						if ( ( target = document.getElementById( e ) ) && target.id === e && target.nodeName === "A" ) {
 							var rect = target.getBoundingClientRect();
-							window.scrollTo( ( documentElement.scrollLeft || 0 ),
-								rect.top + ( documentElement.scrollTop || 0 ) - ( documentElement.clientTop || 0 ) );
+							window.scrollTo( ( _documentElement.scrollLeft || 0 ),
+								rect.top + ( _documentElement.scrollTop || 0 ) - ( _documentElement.clientTop || 0 ) );
 						}
 
 						if( __GCC__SUPPORT_IELT9__ ) {
