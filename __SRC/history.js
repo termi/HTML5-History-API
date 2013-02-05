@@ -1,4 +1,4 @@
-/** @license Copyright 2011-2012, Dmitriy Pakhtinov ( spb.piksel@gmail.com ) and github.com/termi */
+/** @license Copyright 2011-2013, Dmitriy Pakhtinov ( spb.piksel@gmail.com ) and github.com/termi */
 /*
  * history API JavaScript Library v3.0.1 beta
  *
@@ -12,6 +12,7 @@
  * 
  * Forked https://github.com/termi | 19-05-2012
  * Updated to https://github.com/devote/HTML5-History-API/ v3.1.1 beta
+ * Last update: 05.02.2013
  *
  * TODO:
  *  1. Optional es and dom shims for IE < 9
@@ -28,15 +29,19 @@
 
 // [[[|||---=== GCC DEFINES START ===---|||]]]
 /** @define {boolean} */
-var __GCC__SUPPORT_IELT9__ = true;
-/** @define {boolean} */
-var __GCC__JSON_POLLIFIL__ = false;
-/** @define {boolean} */
-var __GCC__IELT9_SHIM__ = false;
-/** @define {boolean} */
-var __GCC__SOME_ECMA_SCRIPT_SHIM__ = false;
-/** @define {boolean} */
 var __GCC__LIBRARY_INTERNAL_SETTINGS__ = false;
+/** @define {boolean} */
+var __GCC__SUPPORT_IELT9__ = true;
+	/** @define {boolean} */
+	var __GCC__IELT9_SHIM__ = true;
+/** @define {boolean} */
+var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
+	/** @define {boolean} */
+	var __GCC__SOME_ECMA_SCRIPT_SHIM__ = false;
+	/** @define {boolean} */
+	var __GCC__JSON_POLLIFIL__ = false;
+
+var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
 // [[[|||---=== GCC DEFINES END ===---|||]]]
 /*
 if __GCC__SUPPORT_IELT9__ == TRUE
@@ -52,8 +57,10 @@ if(__GCC__LIBRARY_INTERNAL_SETTINGS__) {
 var SESSION_STORAGE_KEY = '__hitoryapi__';
 // END CONFIG
 
-;(function( global ){
+void function( ){
 	"use strict";
+
+	var global = this;
 
 	//__GCC__IELT9_SHIM__ == true
 	/*TODO::
@@ -76,14 +83,21 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 	}*/
 	//end __GCC__IELT9_SHIM__ == true
 
-	var
-		tmp = global.JSON || {}
+	var	tmp = global["JSON"] || {}
+
+		, _document = document
+
+		// HTML tag
+		, _documentElement = _document.documentElement
+
+		, _Event_constructor_ = global.Event
+
 		/** Use native "bind" or unsafe bind for service and performance needs
 		 * @const
 		 * @param {Object} object
 		 * @param {...} var_args
 		 * @return {Function} */
-	  , _unSafeBind = Function.prototype.bind || __GCC__SOME_ECMA_SCRIPT_SHIM__ && function(object, var_args) {
+ 		, _unSafeBind = Function.prototype.bind || __GCC__SOME_ECMA_SCRIPT_SHIM__ && function(object, var_args) {
 			var __method = this,
 				args = _Array_slice.call(arguments, 1);
 			return function () {
@@ -92,10 +106,13 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 		}
 
 		/** @const */
-  	  , _Array_slice = Array.prototype.slice
+  		, _Array_slice = Array.prototype.slice
 
 		/** @const */
-	  , _hasOwnProperty = _unSafeBind.call(Function.prototype.call, Object.prototype.hasOwnProperty)
+		, _Function_call_ = Function.prototype.call
+
+		/** @const */
+	  , _hasOwnProperty = _unSafeBind.call(_Function_call_, Object.prototype.hasOwnProperty)
 
 		// preserve original object of History
 	  , windowHistory = global.history || {}
@@ -104,11 +121,11 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 	  , windowLocation = global.location
 
 		// Check support HTML5 History API
-	  , api = "pushState" in windowHistory
+	  , html5HistoryAPISupports = "pushState" in windowHistory
 
 		// If the first event is triggered when the page loads
 		// This behavior is obvious for Chrome and Safari
-	  , initialState = api && windowHistory.state === void 0
+	  , initialState = html5HistoryAPISupports && windowHistory.state === void 0
 
 	  , initialFire = windowLocation.href
 
@@ -124,7 +141,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 		/** if we are in Internet Explorer
 		 * @type {number}
 		 */
-	  , msie = __GCC__SUPPORT_IELT9__ && (/msie (\d+)/i.exec(navigator.userAgent) || [])[1]
+	  , msie = __GCC__SUPPORT_IELT9__ && global["eval"] && eval("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
 
 		// unique ID of the library needed to run VBScript in IE
 	  , libID = ( new Date() ).getTime()
@@ -132,7 +149,9 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 		// counter of created classes in VBScript
 	  , VBInc = __GCC__SUPPORT_IELT9__ ? (( !msie || msie > 8 ) ? 0 : 1) : void 0
 
-	  , iframe = __GCC__SUPPORT_IELT9__ ? (msie < 8 ? document.createElement( 'iframe' ) : 0) : void 0
+	  , IElt10_iframe = __GCC__SUPPORT_IELT9__ ? (msie < 8 ? _document.createElement( 'iframe' ) : 0) : void 0
+
+		, IElt10_events
 
 	  , skipHashChange = 0
 
@@ -153,7 +172,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 			"basepath": '/',
 			"redirect": 0,
 			"type": '/'
-		}, document.getElementById(HISTORY_JS_ELEMENT_ID))
+		}, _document.getElementById(HISTORY_JS_ELEMENT_ID))
 
 	  , RE_PATH_FILE_NAME_REPLACER = /[^\/]+$/g
 
@@ -177,7 +196,6 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 				, pathname
 				, RE_PATH_REPLACER = new RegExp( "^" + __GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : default_basePath, "i" )
 				, RE_NOT_HASH_REPLACER = /^[^#]*/
-				, RE_HASH_REPLACER = __GCC__LIBRARY_INTERNAL_SETTINGS__ ? new RegExp( "^#[\/]?(?:" + libraryInternalSettings["type"] + ")?" ) : /^#[\/]?(?:\/)?/
 				, RE_PROTOCOL_TEST = /^(?:[a-z]+\:)?\/\//
 			;
 
@@ -187,16 +205,20 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 
 					href = windowLocation.href;
 
-					if ( !api || test ) {
+					if ( !html5HistoryAPISupports || test ) {
 						// form the absolute link from the hash
 						href =
-							windowLocation.protocol + "//" +
-							windowLocation.host + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : href.indexOf("#") != -1 ? '/'/*TODO::default_basePath.replace(RE_PATH_FILE_NAME_REPLACER, "")*/ : default_basePath) +
-							href.replace( RE_NOT_HASH_REPLACER, '' ).replace( RE_HASH_REPLACER, "" )
+							windowLocation.protocol
+							+ "//"
+							+ windowLocation.host
+							+ (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : href.indexOf("#") != -1 ? '/'/*TODO::default_basePath.replace(RE_PATH_FILE_NAME_REPLACER, "")*/ : default_basePath)
+							+ (
+								href.replace( RE_NOT_HASH_REPLACER, '' ) || "#"
+								).replace( __GCC__LIBRARY_INTERNAL_SETTINGS__ ? new RegExp( "^#[\/]?(?:" + libraryInternalSettings["type"] + ")?" ) : /^#[\/]?(?:\/)?/, "" )
 						;
 					}
 				}
-				else if ( !api ) {
+				else if ( !html5HistoryAPISupports || msie ) {
 
 					var current = normalizeUrl()
 					  , _pathname = current._pathname
@@ -206,7 +228,10 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 
 					// convert relative link to the absolute
 					href = RE_PROTOCOL_TEST.test( href ) ?
-						char_at_0 == "/" ? _protocol + href : href
+						char_at_0 == "/" ?
+							_protocol + href
+							:
+							href
 						:
 						_protocol + "//" + current._host + (
 							char_at_0 == "/" ? href :
@@ -258,7 +283,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 					_special: special
 				}
 			}
-		})( document.createElement("a") )
+		})( _document.createElement("a") )
 
 		// modifiable object of History
 	  , History = !VBInc && windowHistory || __GCC__SUPPORT_IELT9__ && {
@@ -273,7 +298,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 
 			"replaceState": void 0,
 
-			"emulate": !api,
+			"emulate": !html5HistoryAPISupports,
 
 			"toString": function() {
 				return "[object History]";
@@ -284,7 +309,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 	  , HistoryAccessors = {
 			"state": {
 				get: function() {
-					return iframe && iframe["storage"] || historyStorage()[ History.location.href ] || null;
+					return IElt10_iframe && IElt10_iframe["storage"] || historyStorage()[ History.location.href ] || null;
 				}
 			},
 
@@ -299,7 +324,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 					global.location = val;
 				},
 				get: function() {
-					return api ? windowLocation : Location;
+					return html5HistoryAPISupports ? windowLocation : Location;
 				}
 			}
 		}
@@ -307,13 +332,13 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 		// The new Location object to add it to the object of History
 	  , Location = {
 			"assign": function( url ) {
-				windowLocation.assign( api || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
+				windowLocation.assign( html5HistoryAPISupports || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
 			},
 
 			"reload": windowLocation.reload,
 
 			"replace": function( url ) {
-				windowLocation.replace( api || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
+				windowLocation.replace( html5HistoryAPISupports || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
 			},
 
 			"toString": function() {
@@ -393,7 +418,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 					  , urlObject = normalizeUrl()
 					;
 
-					if ( iframe ) {
+					if ( IElt10_iframe ) {
 						if ( hash != urlObject._hash ) {
 							History.pushState( null, null, urlObject._nohash + hash );
 
@@ -423,12 +448,15 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 		 */
 	  , createStaticObject = function( obj, props, novb ) {
 
-			var tmp = obj,
-				key,
-				vb = false;
+			var tmp = obj
+				, key
+				, vb = false
+			;
 
 			try {
-				if(Object.defineProperty["ielt8"])throw Error;
+				if(Object.defineProperty({}, "t", {get : function() {return 1}})["t"] !== 1) {
+					throw Error;
+				}
 				Object.defineProperties(obj, props);
 			}
 			catch( _e_ ) {
@@ -446,9 +474,8 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 
 			if ( __GCC__SUPPORT_IELT9__ && !novb && vb && VBInc ) {
 
-				var
-					staticClass = "StaticClass" + libID + VBInc++
-				  , parts = [ "Class " + staticClass ]
+				var staticClass = "StaticClass" + libID + VBInc++
+					, parts = [ "Class " + staticClass ]
 				;
 
 				// functions for VBScript
@@ -532,35 +559,79 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 		}
 
 	  , fireStateChange = function( type, oldURL, newURL ) {
-			var newEvent = new Event(type == 2 ? 'hashchange' : 'popstate');
-			newEvent["oldUrl"] = oldURL || "";
-			newEvent["newUrl"] = newURL || "";
+			var newEvent = new _Event_constructor_(
+				type == 2 ?
+					'hashchange'
+					:
+					__GCC__CUSTOM_PAGE_CHANGE_EVENT__ && type == 3 ? __GCC__CUSTOM_PAGE_CHANGE_EVENT__ :
+					'popstate'
+			);
+
+			if( oldURL != void 0 ) {
+				newEvent["oldUrl"] = oldURL;
+			}
+			if( newURL != void 0) {
+				newEvent["newUrl"] = newURL;
+			}
 			newEvent["__history_shim__"] = true;
-			if(!api && type != 2 && global.onpopstate)global.onpopstate(newEvent);
-			global.dispatchEvent(newEvent);
+
+			if( !html5HistoryAPISupports && type == void 0 && global.onpopstate) {
+				global.onpopstate(newEvent);
+			}
+
+			if( __GCC__SUPPORT_IELT9__ ) {
+				if( global.dispatchEvent ) {
+					global.dispatchEvent(newEvent);
+				}
+				else {
+					var _func;
+					for(var i in IElt10_events) {
+						if( IElt10_events.hasOwnProperty(i)
+							&& (
+								typeof (_func = IElt10_events[i] == "function")
+								|| (_func && (typeof _func == "object") && (_func = _func.handleEvent))
+							)
+						) {
+							_func.call(global, newEvent);
+						}
+					}
+
+				}
+			}
+			else {
+				global.dispatchEvent(newEvent);
+			}
 		}
 
 	  , hashChanged = (function() {
 
-			var
-				windowPopState = global.onpopstate || null,
-				windowHashChange = global.onhashchange || null,
-				popstateFired = 0,
-				initialStateHandler = null,
-				urlObject = normalizeUrl(),
-				RE_GET_HASH_FROM_URL = /^.*?(#|$)/,
-				oldURL = urlObject._href,
+			var windowPopState = global.onpopstate || null
+				, windowHashChange = global.onhashchange || null
+				, popstateFired = 0
+				, initialStateHandler = null
+				, urlObject = normalizeUrl()
+				, oldURL = urlObject._href
 
-				fireInitialState = function() {
+				, fireInitialState = function() {
 					if ( initialFire && !( initialFire = 0 ) && urlObject._relative !== (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : default_basePath) ) {
 						clearInterval( initialStateHandler );
-						setTimeout( _unSafeBind.call(fireStateChange) , 10);
+						setTimeout( fireStateChange , 10);
 					}
 				},
 
 				change = function( e ) {
 					if(e["__history_shim__"])return;
 
+/*					//TODO::// Chrome(webkit?) fire popstate for hashchange
+
+					if( historyPushState ) {
+						return;
+					}
+
+					var hash = windowLocation.hash + "";
+
+					if( hash.substr(0, 2) != "/" + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') )return;
+*/
 					var urlObject = normalizeUrl();
 
 					if ( skipHashChange ) {
@@ -568,20 +639,18 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 						return skipHashChange = 0;
 					}
 
-					var
-						oldUrl = e.oldURL || oldURL,
-						newUrl = oldURL = e.newURL || urlObject._href,
-						oldHash = oldUrl.replace( RE_GET_HASH_FROM_URL, "" ),
-						newHash = newUrl.replace( RE_GET_HASH_FROM_URL, "" ),
-						newEvent
+					var oldUrl = e.oldURL || oldURL
+						, newUrl = oldURL = e.newURL || urlObject._href
+						, oldHash = oldUrl.replace( /^.*?(#|$)/, "" )
+						, newHash = newUrl.replace( /^.*?(#|$)/, "" )
 					;
 
 					if ( oldUrl != newUrl && !popstateFired ) {
 						// fire popstate
 						fireStateChange(
-							void 0,
-							oldUrl,//TODO:: need oldUrl ?
-							newUrl//TODO:: need newUrl ?
+							void 0
+							/*, oldUrl//TODO:: need oldUrl ?
+							, newUrl//TODO:: need newUrl ?*/
 						)
 					}
 
@@ -595,36 +664,56 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 				}
 			;
 
-			global.addEventListener( "hashchange", change );
+			if( global.addEventListener ) {
+				global.addEventListener( "hashchange", change, false );
+			}
+			else {
+				global.attachEvent( "onhashchange", change );
+			}
 
 			function fistPopStateChange_bug(e) {
 				// popstate ignore the event when the document is loaded
 				if ( initialFire === windowLocation.href ) {
-					e.stopImmediatePropagation();
+					if(e.stopImmediatePropagation) {
+						e.stopImmediatePropagation();
+					}
+					else {
+						e.stopPropagation();
+					}
 					initialFire = 0;
 				}
-				global.removeEventListener( "popstate", fistPopStateChange_bug );
+				global.removeEventListener( "popstate", fistPopStateChange_bug, false );
 			}
-			global.addEventListener( "popstate", fistPopStateChange_bug );
-			global.addEventListener( "popstate", function() {
-				initialFire = 0;
-				popstateFired = 1;
-			} );
+			if( global.addEventListener ) {
+				global.addEventListener( "popstate", fistPopStateChange_bug, false );
+				global.addEventListener( "popstate", function(e) {
+					initialFire = 0;
+					popstateFired = 1;
+				}, false );
+			}
 
-			History = createStaticObject( History, __GCC__SUPPORT_IELT9__ && VBInc ? HistoryAccessors : windowHistory.state === void 0 ? {
-				// Safari does not support the built-in object state
-				state: HistoryAccessors.state,
+			History = createStaticObject( History,
+				__GCC__SUPPORT_IELT9__ && VBInc ?
+					HistoryAccessors // Old IE
+					:
+					windowHistory.state === void 0 ?
+						{
+							// Safari does not support the built-in object state
+							state: HistoryAccessors.state,
 
-				// add a location object inside the object History
-				location: HistoryAccessors.location
-			} : {
-				// for all other browsers that work correctly with the history
-				location: HistoryAccessors.location
-			});
+							// add a location object inside the object History
+							location: HistoryAccessors.location
+						}
+						:
+						{
+							// for all other browsers that work correctly with the history
+							location: HistoryAccessors.location
+						}
+			);
 
 			Location = createStaticObject( Location, LocationAccessors );
 
-			if ( VBInc ) {
+			if ( VBInc && __GCC__IELT9_SHIM__ ) {
 				// override global History object and onhashchange property in window
 				execScript( 'Public history, onhashchange', 'VBScript' );
 			}
@@ -644,13 +733,13 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 						},
 						set: function( val ) {
 							if ( windowPopState = ( val || null ) ) {
-								!api && fireInitialState();
+								!html5HistoryAPISupports && fireInitialState();
 							}
 						}
 					}
 				}, true );
 
-			if ( __GCC__SUPPORT_IELT9__ && !succsess && !api ) {
+			if ( __GCC__SUPPORT_IELT9__ && !succsess && !html5HistoryAPISupports ) {
 				initialStateHandler = setInterval(function() {
 					if ( global.onpopstate ) {
 						fireInitialState();
@@ -660,22 +749,89 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 
 			if ( __GCC__LIBRARY_INTERNAL_SETTINGS__ && libraryInternalSettings["redirect"] && global.top == global.self ) {
 
-				var
-					relative = normalizeUrl(null, true)._relative,
-					search = windowLocation.search,
-					path = windowLocation.pathname,
-					basepath = libraryInternalSettings["basepath"];
+				if( __GCC__LIBRARY_INTERNAL_SETTINGS__ ) {
+					libraryInternalSettings["type"] = type === undefined ? libraryInternalSettings["type"] : type;
+					libraryInternalSettings["basepath"] = basepath === undefined ? libraryInternalSettings["basepath"] : basepath;
+				};
 
-				if ( api ) {
-					if ( relative != basepath && (new RegExp( "^" + basepath + "$", "i" )).test( path ) ) {
-						windowLocation.href = relative;
+				if ( window.top == window.self ) {
+
+					var relative = normalizeUrl( null, true )._relative
+						, search = windowLocation.search
+						, path = windowLocation.pathname
+						, basepath = libraryInternalSettings["basepath"]
+					;
+
+					if ( html5HistoryAPISupports ) {
+
+						if ( relative != basepath && (new RegExp( "^" + basepath + "$", "i" )).test( path ) ) {
+							windowLocation.href = relative;
+						}
+
+						if ( ( new RegExp( "^" + basepath + "$", "i" ) ).test( path + '/' ) ) {
+							windowLocation.href = basepath;
+						} else if ( !(new RegExp( "^" + basepath, "i" )).test( path ) ) {
+							windowLocation.href = path.replace(/^\//, basepath ) + search;
+						}
 					}
-					if ( !(new RegExp( "^" + basepath, "i" )).test( path ) ) {
-						windowLocation.href = path.replace(/^\//, basepath ) + search;
+					else if ( path != basepath ) {
+						windowLocation.href = basepath + '#' + path.
+							replace( new RegExp( "^" + basepath, "i" ), libraryInternalSettings["type"] ) + search + windowLocation.hash;
 					}
-				} else if ( path != basepath ) {
-					windowLocation.href = basepath + '#' + path.
-						replace( new RegExp( "^" + basepath, "i" ), libraryInternalSettings["type"] ) + search + windowLocation.hash;
+				}
+			}
+
+			function documentClickHandler( e ) {
+				var event = e || __GCC__SUPPORT_IELT9__ && global["event"]
+					, target = event.target || __GCC__SUPPORT_IELT9__ && event.srcElement
+					, defaultPrevented =
+						__GCC__SUPPORT_IELT9__ ? ("defaultPrevented" in event ? event.defaultPrevented : event.returnValue === false)
+						:
+						event.defaultPrevented
+				;
+
+				if ( target && target.nodeName === "A" && !defaultPrevented ) {
+
+					e = normalizeUrl( target.getAttribute( "href", 2 ), true );
+
+					if ( e._hash && e._hash !== "#" && e._hash === e._href.replace( normalizeUrl()._href.split( "#" ).shift(), "" ) ) {
+
+						history.location.hash = e._hash;
+
+						e = e._hash.replace( /^#/, '' );
+
+						if ( ( target = document.getElementById( e ) ) && target.id === e && target.nodeName === "A" ) {
+							var rect = target.getBoundingClientRect();
+							window.scrollTo( ( documentElement.scrollLeft || 0 ),
+								rect.top + ( documentElement.scrollTop || 0 ) - ( documentElement.clientTop || 0 ) );
+						}
+
+						if( __GCC__SUPPORT_IELT9__ ) {
+							if ( event.preventDefault ) {
+								event.preventDefault();
+							}
+							else {
+								event.returnValue = false;
+							}
+						}
+						else {
+							event.preventDefault();
+						}
+					}
+				}
+			}
+
+			if ( !html5HistoryAPISupports ) {
+				if( __GCC__SUPPORT_IELT9__ ) {
+					if( document.addEventListener ) {
+						document.addEventListener("click", documentClickHandler, false);
+					}
+					else {
+						document.attachEvent("onclick", documentClickHandler)
+					}
+				}
+				else {
+					document.addEventListener("click", documentClickHandler, false);
 				}
 			}
 
@@ -684,20 +840,99 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 
 	if(__GCC__JSON_POLLIFIL__) {
 		//https://gist.github.com/1087317
-		if(!JSONStringify)JSONStringify = function(a,b,c){for(b in(c=a==""+{}&&[])&&a)c.push(JSONStringify(b)+":"+JSONStringify(a[b]));return""+a===a?'"'+a+'"':a&&a.map?"["+a.map(JSONStringify)+"]":c?"{"+c+"}":a};
+		if(!JSONStringify) {
+			JSONStringify = function(a,b,c){for(b in(c=a==""+{}&&[])&&a)c.push(JSONStringify(b)+":"+JSONStringify(a[b]));return""+a===a?'"'+a+'"':a&&a.map?"["+a.map(JSONStringify)+"]":c?"{"+c+"}":a};
+		}
 
-		if(!JSONParse)JSONParse = function( source ) {
-			return source ? (new Function( "return " + source ))() : null;
+		if(!JSONParse) {
+			JSONParse = function( source ) {
+				return source ? (new Function( "return " + source ))() : null;
+			}
 		}
 	}
 
-	History.pushState = function( state, title, url, replace ) {
+	if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ ) {
+		try {
+			new _Event_constructor_("click");
+		}
+		catch(e) {
+			_Event_constructor_ = null;
+		}
 
-		var
-			stateObject = historyStorage(),
-			defaultUrlObject = normalizeUrl(),
-			currentHref = defaultUrlObject._href,
-			urlObject = url && normalizeUrl( url );
+		if( !_Event_constructor_ ) {
+			_Event_constructor_ = function(name) {
+				var event;
+
+				if( __GCC__IELT9_SHIM__ ) {
+					if( _document.createEvent ) {
+						event = _document.createEvent("Events");
+						event.initEvent( name, false, false );
+					}
+					else {
+						event = _document.createEventObject();
+						event.type = name;
+					}
+				}
+				else {
+					event = _document.createEvent("Events");
+					event.initEvent( name, false, false );
+				}
+
+				return event;
+			}
+		}
+	}
+
+	if( __GCC__IELT9_SHIM__ && !global.addEventListener ) {
+		IElt10_events = {};
+
+		global.attachEvent = _unSafeBind(function(originalAttachEvent, eventName, handler) {
+			var uuid
+				, handlers
+			;
+
+			if( eventName == "popstate" || eventName == "hashchange" || (__GCC__CUSTOM_PAGE_CHANGE_EVENT__ && eventName == __GCC__CUSTOM_PAGE_CHANGE_EVENT__) ) {
+				if( !(handlers = IElt10_events[eventName]) ) {
+					handlers = IElt10_events[eventName] = {};
+				}
+
+				if( !(uuid = handler["uuid"]) ) {
+					uuid = handler["uuid"] = "_" + +new Date();
+				}
+				if( !handlers[uuid] ) {
+					handlers[uuid] = handler;
+				}
+			}
+			else {
+				_Function_call_.call(originalAttachEvent, global, eventName, handler);
+			}
+		}, global.attachEvent);
+
+		global.detachEvent = _unSafeBind(function(originalDetachEvent, eventName, handler) {
+			var uuid
+				, handlers
+			;
+
+			if( eventName == "popstate" || eventName == "hashchange" || (__GCC__CUSTOM_PAGE_CHANGE_EVENT__ && eventName == __GCC__CUSTOM_PAGE_CHANGE_EVENT__) ) {
+				uuid = handler["uuid"];
+
+				if( uuid
+					&& (handlers = IElt10_events[eventName])
+				) {
+					delete handlers[uuid];
+				}
+			}
+			else {
+				_Function_call_.call(originalDetachEvent, global, eventName, handler);
+			}
+		}, global.detachEvent);
+	}
+
+	History.pushState = function( state, title, url, replace ) {
+		var stateObject = historyStorage()
+			, currentHref = normalizeUrl()._href
+			, urlObject = url && normalizeUrl( url )
+		;
 
 		initialFire = 0;
 		url = urlObject ? urlObject._href : currentHref;
@@ -706,7 +941,7 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 			delete stateObject[ currentHref ];
 		}
 
-		if ( ( !api || initialState ) && sessionStorage && state ) {
+		if ( ( !html5HistoryAPISupports || initialState ) && sessionStorage && state ) {
 			stateObject[ url ] = state;
 			historyStorage( stateObject );
 			state = null;
@@ -718,12 +953,23 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 			} else {
 				historyPushState.call( History, state, title, url );
 			}
-		} else if ( urlObject && urlObject._relative != defaultUrlObject._relative ) {
+		}
+		else if ( urlObject && urlObject._relative != normalizeUrl()._relative ) {
 			skipHashChange = 1;
 			if ( replace ) {
-				windowLocation.replace( "#" + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') + urlObject._relative );
+				windowLocation.replace( "#" + urlObject._special );
 			} else {
-				windowLocation.hash = (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') + urlObject._relative;
+				windowLocation.hash = urlObject._special;
+			}
+		}
+
+		if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
+			var currentUrl = normalizeUrl()._nohash;
+
+			if( !_lastPageUrlWithoutHash || (_lastPageUrlWithoutHash != currentUrl) ) {
+				fireStateChange(3, _lastPageUrlWithoutHash, currentUrl);
+
+				_lastPageUrlWithoutHash = currentUrl;
 			}
 		}
 	};
@@ -739,10 +985,10 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 		// If IE version 7 or lower to the enable iframe navigation
 		(function( cookie, currentHref ) {
 			var hashCheckerHandler
-			  , checker
+				, checker
 			;
 
-			if ( !iframe ) return;
+			if ( !IElt10_iframe ) return;
 
 			checker = function() {
 				var href = normalizeUrl()._href;
@@ -757,17 +1003,17 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 			// starting interval for check hash
 			hashCheckerHandler = setInterval( checker, 100 );
 
-			iframe.src = "javascript:true;";
-			iframe = document.documentElement.firstChild.appendChild( iframe ).contentWindow;
+			IElt10_iframe.src = "javascript:true;";
+			IElt10_iframe = _documentElement.firstChild.appendChild( IElt10_iframe ).contentWindow;
 
 			History.pushState = function( state, title, url, replace, lfirst ) {
 
-				var i = iframe.document,
+				var i = IElt10_iframe.document,
 					content,
 					urlObject = url && normalizeUrl( url );
 
 				if ( !urlObject /*|| !urlObject._relative//TODO::need this?*/ ) {
-					iframe["storage"] = state;
+					IElt10_iframe["storage"] = state;
 					return;
 				}
 
@@ -776,21 +1022,23 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 				}
 
 				if ( replace ) {
-					if ( iframe["lfirst"] ) {
+					if ( IElt10_iframe["lfirst"] ) {
 						history.back();
 						History.pushState( state, title, urlObject._href, 0, 1 );
 					} else {
-						iframe["storage"] = state;
+						IElt10_iframe["storage"] = state;
 						windowLocation.replace( "#" + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') + urlObject._special );
 					}
 				} else if ( urlObject._href != currentHref || lfirst ) {
-					if ( !iframe["lfirst"] ) {
-						iframe["lfirst"] = 1;
-						History.pushState( iframe["storage"], title, currentHref, 0, 1 );
+					if ( !IElt10_iframe["lfirst"] ) {
+						IElt10_iframe["lfirst"] = 1;
+						History.pushState( IElt10_iframe["storage"], title, currentHref, 0, 1 );
 					}
-					content = [ '<script>', 'lfirst=1;', ,'storage=' + JSONStringify( state ) + ';', '</script>' ];
+					content = [ '<scr' + 'ipt>', 'lfirst=1;', ,'storage=' + JSONStringify( state ) + ';', '</scr' + 'ipt>' ];
 					content[ 2 ] = 'parent.location.hash="' + urlObject._special.replace( /"/g, '\\"' ) + '";';
-					i.open(); i.write( content.join("") ); i.close();
+					i.open();
+					i.write( content.join("") );
+					i.close();
 				}
 
 				if ( !lfirst ) {
@@ -800,10 +1048,10 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 			};
 
 			global.attachEvent( "unload", function() {
-				if ( iframe["storage"] ) {
+				if ( IElt10_iframe["storage"] ) {
 					var state = {};
-					state[ normalizeUrl()._href ] = iframe["storage"];
-					document.cookie = "_historyAPI=" + escape( JSONStringify( state ) );
+					state[ normalizeUrl()._href ] = IElt10_iframe["storage"];
+					_document.cookie = "_historyAPI=" + escape( JSONStringify( state ) );
 				}
 				clearInterval( hashCheckerHandler );
 			} );
@@ -811,17 +1059,47 @@ var SESSION_STORAGE_KEY = '__hitoryapi__';
 			if ( cookie.length > 1 ) {
 				cookie = unescape( cookie.pop().split( ";" ).shift() );
 				try {
-					iframe["storage"] = JSONParse( cookie )[ normalizeUrl()._href ];
+					IElt10_iframe["storage"] = JSONParse( cookie )[ normalizeUrl()._href ];
 				} catch( _e_ ) {}
 			}
 
-		})( document.cookie.split( "_historyAPI=" ), normalizeUrl()._href );
+		})( _document.cookie.split( "_historyAPI=" ), normalizeUrl()._href );
 	} //end if(__GCC__SUPPORT_IELT9__)
 	else {
 		// Add other browsers to emulate variable
 		// The object of History, thus, we can learn
 		// If the browser has native support for working with history
-		global.history["emulate"] = !api;
+		global.history["emulate"] = !html5HistoryAPISupports;
 	}
 
-})( window );
+	if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
+		var _lastPageUrlWithoutHash = "";
+
+		tmp = function() {
+			var currentUrl = normalizeUrl()._nohash;
+
+			if( !_lastPageUrlWithoutHash || (_lastPageUrlWithoutHash != currentUrl) ) {
+				fireStateChange(3, _lastPageUrlWithoutHash, currentUrl);
+
+				_lastPageUrlWithoutHash = currentUrl;
+			}
+		};
+
+		if( __GCC__SUPPORT_IELT9__ ) {
+			if( global.addEventListener ) {
+				global.addEventListener("popstate", tmp);
+				global.addEventListener("hashchange", tmp);
+			}
+			else {
+				global.attachEvent("popstate", tmp);
+				global.attachEvent("hashchange", tmp);
+			}
+		}
+		else {
+			global.addEventListener("popstate", tmp);
+			global.addEventListener("hashchange", tmp);
+		}
+	}
+
+	tmp = msie = libID = VBInc = createStaticObject = void 0;
+}.call( window );
