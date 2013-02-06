@@ -34,11 +34,11 @@ var __GCC__LIBRARY_INTERNAL_SETTINGS__ = false;
 var __GCC__SUPPORT_IELT9__ = true;
 /** @define {boolean} */
 var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
-	/** @define {boolean} */
-	var __GCC__SOME_ECMA_SCRIPT_SHIM__ = true;
+/** @define {boolean} */
+var __GCC__SOME_ECMA_SCRIPT_SHIM__ = true;
 	/** @define {boolean} */
 	var __GCC__JSON_POLLIFIL__ = true;
-
+/** @define {boolean} */
 var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
 // [[[|||---=== GCC DEFINES END ===---|||]]]
 /*
@@ -139,7 +139,7 @@ void function( ){
 		/** if we are in Internet Explorer 6-10
 		 * @type {number}
 		 */
-		, msie = global["eval"] && eval("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
+		, msie = (tmp = global["ev" + (_document["documentMode"] || _document.attachEvent ? "" : _Array_slice) + "al"]) && tmp("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
 
 		// unique ID of the library needed to run VBScript in IE
 		, libID = ( new Date() ).getTime()
@@ -539,7 +539,7 @@ void function( ){
 					"End Function"
 				);
 
-				execVB( parts.join( "\n" ) );
+				global["execVB"]( parts.join( "\n" ) );
 
 				tmp = global[ staticClass + "Factory" ]();
 
