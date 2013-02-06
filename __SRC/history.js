@@ -32,8 +32,6 @@
 var __GCC__LIBRARY_INTERNAL_SETTINGS__ = false;
 /** @define {boolean} */
 var __GCC__SUPPORT_IELT9__ = true;
-	/** @define {boolean} */
-	var __GCC__IELT9_SHIM__ = true;
 /** @define {boolean} */
 var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
 	/** @define {boolean} */
@@ -62,9 +60,9 @@ void function( ){
 
 	var global = this;
 
-	//__GCC__IELT9_SHIM__ == true
+	//__GCC__SUPPORT_IELT9__ == true
 	/*TODO::
-	if(__GCC__IELT9_SHIM__) {
+	if(__GCC__SUPPORT_IELT9__) {
 		var _window_addEventListener = global.addEventListener
 		  , _Object_defineProperties = Object.defineProperties
 		  , _Event = global.Event
@@ -81,7 +79,7 @@ void function( ){
 		}
 		function(a,b,c,d){a=a||document;d=a[b="on"+b];b=a[b]=function(e){d=d&&d(e=e||a.event);return(c=c&&b(e))?b:d};a=this}
 	}*/
-	//end __GCC__IELT9_SHIM__ == true
+	//end __GCC__SUPPORT_IELT9__ == true
 
 	var	tmp = global["JSON"] || {}
 
@@ -101,7 +99,7 @@ void function( ){
 			var __method = this,
 				args = _Array_slice.call(arguments, 1);
 			return function () {
-				return _Function_apply.call(__method, object, args.concat(_Array_slice.call(arguments)));
+				return __method.apply(object, args.concat(_Array_slice.call(arguments)));
 			}
 		}
 
@@ -112,51 +110,59 @@ void function( ){
 		, _Function_call_ = Function.prototype.call
 
 		/** @const */
-	  , _hasOwnProperty = _unSafeBind.call(_Function_call_, Object.prototype.hasOwnProperty)
+		, _hasOwnProperty = _unSafeBind.call(_Function_call_, Object.prototype.hasOwnProperty)
 
 		// preserve original object of History
-	  , windowHistory = global.history || {}
+		, windowHistory = global.history || {}
 
 		// obtain a reference to the Location object
-	  , windowLocation = global.location
+		, windowLocation = global.location
 
 		// Check support HTML5 History API
-	  , html5HistoryAPISupports = "pushState" in windowHistory
+		, html5HistoryAPISupports = "pushState" in windowHistory
 
 		// If the first event is triggered when the page loads
 		// This behavior is obvious for Chrome and Safari
-	  , initialState = html5HistoryAPISupports && windowHistory.state === void 0
+		, initialState = html5HistoryAPISupports && windowHistory.state === void 0
 
-	  , initialFire = windowLocation.href
+		, initialFire = windowLocation.href
 
 		// Just a reference to the methods
-	  , historyPushState = windowHistory.pushState
-	  , historyReplaceState = windowHistory.replaceState
+		, historyPushState = windowHistory.pushState
+		, historyReplaceState = windowHistory.replaceState
 
-	  , JSONParse = tmp.parse
-	  , JSONStringify = tmp.stringify
+		, JSONParse = tmp.parse
+		, JSONStringify = tmp.stringify
 
-	  , sessionStorage = global.sessionStorage
+		, sessionStorage = global.sessionStorage
 
-		/** if we are in Internet Explorer
+		/** if we are in Internet Explorer 6-10
 		 * @type {number}
 		 */
-	  , msie = __GCC__SUPPORT_IELT9__ && global["eval"] && eval("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
+		, msie = global["eval"] && eval("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
 
 		// unique ID of the library needed to run VBScript in IE
-	  , libID = ( new Date() ).getTime()
+		, libID = ( new Date() ).getTime()
 
 		// counter of created classes in VBScript
-	  , VBInc = __GCC__SUPPORT_IELT9__ ? (( !msie || msie > 8 ) ? 0 : 1) : void 0
+		, VBInc = __GCC__SUPPORT_IELT9__ ?
+			(
+				(
+					historyPushState//IE10
+					|| !msie//w3c browsers
+					|| msie > 8//IE9
+				) ? 0 : 1)
+			:
+			void 0//build without IE<9 support
 
-	  , IElt10_iframe = __GCC__SUPPORT_IELT9__ ? (msie < 8 ? _document.createElement( 'iframe' ) : 0) : void 0
+		, IElt10_iframe = __GCC__SUPPORT_IELT9__ ? (msie < 8 ? _document.createElement( 'iframe' ) : 0) : void 0
 
 		, IElt10_events
 
-	  , skipHashChange = 0
+		, skipHashChange = 0
 
 		// Internal settings for this library
-	  , libraryInternalSettings = __GCC__LIBRARY_INTERNAL_SETTINGS__ && (function(config, history_js_el) {
+		, libraryInternalSettings = __GCC__LIBRARY_INTERNAL_SETTINGS__ && (function(config, history_js_el) {
 			// parse GET parameters for internal settings.
 			if(history_js_el) {
 				(history_js_el.src.split( "?" )[1] || "").split('&').reduce(function(result, value){
@@ -174,18 +180,18 @@ void function( ){
 			"type": '/'
 		}, _document.getElementById(HISTORY_JS_ELEMENT_ID))
 
-	  , RE_PATH_FILE_NAME_REPLACER = /[^\/]+$/g
+		, RE_PATH_FILE_NAME_REPLACER = /[^\/]+$/g
 
-	  , default_basePath = __GCC__LIBRARY_INTERNAL_SETTINGS__ ? void 0 : location.pathname.split("#")[0].split("?")[0]
-	  //, default_basePath = '/'
+		, default_basePath = __GCC__LIBRARY_INTERNAL_SETTINGS__ ? void 0 : location.pathname.split("#")[0].split("?")[0]
+		//, default_basePath = '/'
 
-	/**
+		/**
 		 * function for the preparation of URL-links for further work
 		 * link parsing
 		 * @param {string=} url
 		 * @return {Object}
 		 */
-	  , normalizeUrl = (function( aElemtnt ) {
+		, normalizeUrl = (function( aElement ) {
 
 			var _href
 				, relative
@@ -196,7 +202,6 @@ void function( ){
 				, pathname
 				, RE_PATH_REPLACER = new RegExp( "^" + __GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : default_basePath, "i" )
 				, RE_NOT_HASH_REPLACER = /^[^#]*/
-				, RE_PROTOCOL_TEST = /^(?:[a-z]+\:)?\/\//
 			;
 
 			return function( href, test ) {
@@ -221,13 +226,13 @@ void function( ){
 				else if ( !html5HistoryAPISupports || msie ) {
 
 					var current = normalizeUrl()
-					  , _pathname = current._pathname
-					  , _protocol = current._protocol
-					  , char_at_0 = href.charAt(0)
+						, _pathname = current._pathname
+						, _protocol = current._protocol
+						, char_at_0 = href.charAt(0)
 					;
 
 					// convert relative link to the absolute
-					href = RE_PROTOCOL_TEST.test( href ) ?
+					href = /^(?:[\w0-9]+\:)?\/\//.test( href ) ?
 						char_at_0 == "/" ?
 							_protocol + href
 							:
@@ -246,38 +251,38 @@ void function( ){
 				if ( _href !== href ) {
 
 					// parse to part with a browser
-					aElemtnt.href = _href = href;
+					aElement.href = _href = href;
 
-					port = aElemtnt.port;
-					host = aElemtnt.host;
-					pathname = aElemtnt.pathname;
+					port = aElement.port;
+					host = aElement.host;
+					pathname = aElement.pathname;
 
 					// Internet Explorer adds the port number to standard protocols
-					if ( ( aElemtnt.protocol === "http:" && port == 80 ) ||
-						( aElemtnt.protocol === "https:" && port == 443 ) ) {
-						host = aElemtnt.hostname;
+					if ( ( aElement.protocol === "http:" && port == 80 ) ||
+						( aElement.protocol === "https:" && port == 443 ) ) {
+						host = aElement.hostname;
 						port = "";
 					}
 
 					// Internet Explorer removes the slash at the beginning the way, we need to add it back
 					pathname = pathname.charAt(0) == "/" ? pathname : "/" + pathname;
 					// relative link, no protocol, no host
-					relative = pathname + aElemtnt.search + aElemtnt.hash;
+					relative = pathname + aElement.search + aElement.hash;
 					// special links for set to hash-link, if browser not support History API
-					nohash = (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? pathname.replace( RE_PATH_REPLACER, sets["type"] ) : pathname) + aElemtnt.search;
-					special = nohash + aElemtnt.hash;
+					nohash = (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? pathname.replace( RE_PATH_REPLACER, sets["type"] ) : pathname) + aElement.search;
+					special = nohash + aElement.hash;
 				}
 
 				// added first symbol for Closure Compiler to advanced optimization
 				return {
-					_href: aElemtnt.protocol + "//" + host + relative,
-					_protocol: aElemtnt.protocol,
+					_href: aElement.protocol + "//" + host + relative,
+					_protocol: aElement.protocol,
 					_host: host,
-					_hostname: aElemtnt.hostname || windowLocation.hostname,
+					_hostname: aElement.hostname || windowLocation.hostname,
 					_port: port || windowLocation.port,
 					_pathname: pathname,
-					_search: aElemtnt.search,
-					_hash: aElemtnt.hash,
+					_search: aElement.search,
+					_hash: aElement.hash,
 					_relative: relative,
 					_nohash: nohash,
 					_special: special
@@ -286,7 +291,7 @@ void function( ){
 		})( _document.createElement("a") )
 
 		// modifiable object of History
-	  , History = !VBInc && windowHistory || __GCC__SUPPORT_IELT9__ && {
+		, History = !VBInc && windowHistory || __GCC__SUPPORT_IELT9__ && {
 			// properties to create an object in IE
 			"back": windowHistory.back,
 
@@ -306,7 +311,7 @@ void function( ){
 		}
 
 		// Accessors for the object History
-	  , HistoryAccessors = {
+		, HistoryAccessors = {
 			"state": {
 				get: function() {
 					return IElt10_iframe && IElt10_iframe["storage"] || historyStorage()[ History.location.href ] || null;
@@ -330,7 +335,7 @@ void function( ){
 		}
 
 		// The new Location object to add it to the object of History
-	  , Location = {
+		, Location = {
 			"assign": function( url ) {
 				windowLocation.assign( html5HistoryAPISupports || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
 			},
@@ -347,7 +352,7 @@ void function( ){
 		}
 
 		// Accessors for the object Location
-	  , LocationAccessors = {
+		, LocationAccessors = {
 			"href": {
 				set: function( val ) {
 					windowLocation.href = val;
@@ -413,9 +418,8 @@ void function( ){
 
 			"hash": {
 				set: function( val ) {
-					var
-						hash = ( val.indexOf( "#" ) === 0 ? val : "#" + val )
-					  , urlObject = normalizeUrl()
+					var hash = ( val.indexOf( "#" ) === 0 ? val : "#" + val )
+						, urlObject = normalizeUrl()
 					;
 
 					if ( IElt10_iframe ) {
@@ -446,7 +450,7 @@ void function( ){
 		 * @param {!Object} props
 		 * @param {boolean=} novb
 		 */
-	  , createStaticObject = function( obj, props, novb ) {
+		, createStaticObject = function( obj, props, novb ) {
 
 			var tmp = obj
 				, key
@@ -469,7 +473,7 @@ void function( ){
 				if ( novb ) {
 					return false;
 				}
-				if(__GCC__SUPPORT_IELT9__)vb = true;
+				if( __GCC__SUPPORT_IELT9__ )vb = true;
 			}
 
 			if ( __GCC__SUPPORT_IELT9__ && !novb && vb && VBInc ) {
@@ -553,12 +557,12 @@ void function( ){
 		/**
 		 * @param {Object=} state
 		 */
-	  , historyStorage = function( state ) {
+		, historyStorage = function( state ) {
 			return sessionStorage ? state ? sessionStorage.setItem( SESSION_STORAGE_KEY, JSONStringify( state ) ) :
 					JSONParse( sessionStorage.getItem( SESSION_STORAGE_KEY ) ) || {} : {};
 		}
 
-	  , fireStateChange = function( type, oldURL, newURL ) {
+		, fireStateChange = function( type, oldURL, newURL ) {
 			var newEvent = new _Event_constructor_(
 				type == 2 ?
 					'hashchange'
@@ -605,7 +609,7 @@ void function( ){
 			}
 		}
 
-	  , hashChanged = (function() {
+		, hashChanged = (function() {
 
 			var windowPopState = global.onpopstate || null
 				, windowHashChange = global.onhashchange || null
@@ -666,12 +670,18 @@ void function( ){
 				}
 			;
 
-			if( global.addEventListener ) {
-				global.addEventListener( "hashchange", change, false );
+			if( __GCC__SUPPORT_IELT9__ ) {
+				if( global.addEventListener ) {
+					global.addEventListener( "hashchange", change, false );
+				}
+				else {
+					global.attachEvent( "onhashchange", change );
+				}
 			}
 			else {
-				global.attachEvent( "onhashchange", change );
+				global.addEventListener( "hashchange", change, false );
 			}
+
 
 			function fistPopStateChange_bug(e) {
 				// popstate ignore the event when the document is loaded
@@ -715,7 +725,7 @@ void function( ){
 
 			Location = createStaticObject( Location, LocationAccessors );
 
-			if ( VBInc && __GCC__IELT9_SHIM__ ) {
+			if ( VBInc && __GCC__SUPPORT_IELT9__ ) {
 				// override global History object and onhashchange property in window
 				execScript( 'Public history, onhashchange', 'VBScript' );
 			}
@@ -751,11 +761,6 @@ void function( ){
 
 			if ( __GCC__LIBRARY_INTERNAL_SETTINGS__ && libraryInternalSettings["redirect"] && global.top == global.self ) {
 
-				if( __GCC__LIBRARY_INTERNAL_SETTINGS__ ) {
-					libraryInternalSettings["type"] = type === undefined ? libraryInternalSettings["type"] : type;
-					libraryInternalSettings["basepath"] = basepath === undefined ? libraryInternalSettings["basepath"] : basepath;
-				};
-
 				if ( window.top == window.self ) {
 
 					var relative = normalizeUrl( null, true )._relative
@@ -787,9 +792,9 @@ void function( ){
 				var event = e || __GCC__SUPPORT_IELT9__ && global["event"]
 					, target = event.target || __GCC__SUPPORT_IELT9__ && event.srcElement
 					, defaultPrevented =
-						__GCC__SUPPORT_IELT9__ ? ("defaultPrevented" in event ? event.defaultPrevented : event.returnValue === false)
+						__GCC__SUPPORT_IELT9__ ? ("defaultPrevented" in event ? event["defaultPrevented"] : event.returnValue === false)
 						:
-						event.defaultPrevented
+						event["defaultPrevented"]
 				;
 
 				if ( target && target.nodeName === "A" && !defaultPrevented ) {
@@ -865,7 +870,7 @@ void function( ){
 			_Event_constructor_ = function(name) {
 				var event;
 
-				if( __GCC__IELT9_SHIM__ ) {
+				if( __GCC__SUPPORT_IELT9__ ) {
 					if( _document.createEvent ) {
 						event = _document.createEvent("Events");
 						event.initEvent( name, false, false );
@@ -885,7 +890,7 @@ void function( ){
 		}
 	}
 
-	if( __GCC__IELT9_SHIM__ && !global.addEventListener ) {
+	if( __GCC__SUPPORT_IELT9__ && !global.addEventListener ) {
 		IElt10_events = {
 			"popstate": {}
 			, "hashchange": {}
@@ -1037,7 +1042,8 @@ void function( ){
 						IElt10_iframe["storage"] = state;
 						windowLocation.replace( "#" + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') + urlObject._special );
 					}
-				} else if ( urlObject._href != currentHref || lfirst ) {
+				}
+				else if ( urlObject._href != currentHref || lfirst ) {
 					if ( !IElt10_iframe["lfirst"] ) {
 						IElt10_iframe["lfirst"] = 1;
 						History.pushState( IElt10_iframe["storage"], title, currentHref, 0, 1 );
@@ -1077,7 +1083,7 @@ void function( ){
 		// Add other browsers to emulate variable
 		// The object of History, thus, we can learn
 		// If the browser has native support for working with history
-		global.history["emulate"] = !html5HistoryAPISupports;
+		History["emulate"] = !html5HistoryAPISupports;
 	}
 
 	if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
