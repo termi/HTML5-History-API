@@ -1115,5 +1115,5 @@ void function( ){
 		}
 	}
 
-	tmp = msie = libID = VBInc = createStaticObject = void 0;
+	tmp = libID = VBInc = createStaticObject = void 0;
 }.call( window );
