@@ -35,10 +35,10 @@ var __GCC__SUPPORT_IELT9__ = true;
 /** @define {boolean} */
 var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
 /** @define {boolean} */
-var __GCC__SOME_ECMA_SCRIPT_SHIM__ = true;
+var __GCC__ECMA_SCRIPT_BIND_SHIM__ = true;
 	/** @define {boolean} */
 	var __GCC__JSON_POLLIFIL__ = true;
-/** @define {boolean} */
+/** @define {string} */
 var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
 // [[[|||---=== GCC DEFINES END ===---|||]]]
 /*
@@ -52,7 +52,7 @@ if(__GCC__LIBRARY_INTERNAL_SETTINGS__) {
 	var HISTORY_JS_ELEMENT_ID = "history_uuid_8vhax7l";
 }
 /** @type {string} @conts */
-var SESSION_STORAGE_KEY = '__hitoryapi__';
+var HISTORY_API_KEY_NAME = '__history_shim__';
 // END CONFIG
 
 void function( ){
@@ -91,11 +91,10 @@ void function( ){
 		, _Event_constructor_ = global.Event
 
 		/** Use native "bind" or unsafe bind for service and performance needs
-		 * @const
 		 * @param {Object} object
 		 * @param {...} var_args
 		 * @return {Function} */
- 		, _unSafeBind = Function.prototype.bind || __GCC__SOME_ECMA_SCRIPT_SHIM__ && function(object, var_args) {
+ 		, _unSafeBind = Function.prototype.bind || __GCC__ECMA_SCRIPT_BIND_SHIM__ && function(object, var_args) {
 			var __method = this,
 				args = _Array_slice.call(arguments, 1);
 			return function () {
@@ -131,31 +130,77 @@ void function( ){
 		, historyPushState = windowHistory.pushState
 		, historyReplaceState = windowHistory.replaceState
 
-		, JSONParse = tmp.parse
-		, JSONStringify = tmp.stringify
+		, JSONParse = tmp["parse"]//tmp == JSON || {}
+		, JSONStringify = tmp["stringify"]//tmp == JSON || {}
 
 		, sessionStorage = global.sessionStorage
 
 		/** if we are in Internet Explorer 6-10
 		 * @type {number}
 		 */
-		, msie = (tmp = global["ev" + (_document["documentMode"] || _document.attachEvent ? "" : _Array_slice) + "al"]) && tmp("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
+		, msie = (tmp = global["ev" + (_document["documentMode"] || _document.attachEvent ? "" : _Array_slice/*just something with toString*/) + "al"]) && tmp("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
 
-		// unique ID of the library needed to run VBScript in IE
-		, libID = ( new Date() ).getTime()
+		// feature detection
+		, _Object_defineProperties = (function() {
+			var obj = {}
+				, result = Object.defineProperties
+			;
+			if( result ) {
+				try {
+					result(obj, {"0": {"get" : function(){ return 1 }}});
+				}
+				catch( _e_ ) {
+					result = null;
+				}
+
+				if( obj["0"] !== 1 ) {
+					result = void 0;
+				}
+			}
+
+			if( !result && obj.__defineGetter__ ) {
+				result = function(obj, props) {
+					var prop
+						, propName
+					;
+
+					if( obj.__defineGetter__ ) {//Safary phink that he has "state" and "location" properties in 'history' object
+						for(propName in props) if( _hasOwnProperty(props, propName) ) {
+							prop = props[propName];
+							if( prop["get"] ) {
+								obj.__defineGetter__(propName, prop["get"]);
+							}
+							if( prop["set"] ) {
+								obj.__defineSetter__(propName, prop["set"]);
+							}
+						}
+					}
+
+					return obj;
+				}
+			}
+
+			obj = null;
+
+			return result;
+		})()
 
 		// counter of created classes in VBScript
 		, VBInc = __GCC__SUPPORT_IELT9__ ?
 			(
 				(
-					historyPushState//IE10
+					_Object_defineProperties//IE9+
+					|| msie > 8//IE9+
 					|| !msie//w3c browsers
-					|| msie > 8//IE9
-				) ? 0 : 1)
+				) ?
+					0 // Browser support set/get for objects
+					:
+					( new Date() ).getTime()// unique ID of the library needed to run VBScript in IE
+			)
 			:
 			void 0//build without IE<9 support
 
-		, IElt10_iframe = __GCC__SUPPORT_IELT9__ ? (msie < 8 ? _document.createElement( 'iframe' ) : 0) : void 0
+		, IElt10_iframe = __GCC__SUPPORT_IELT9__ ? (VBInc ? _document.createElement( 'iframe' ) : 0) : void 0
 
 		, IElt10_events
 
@@ -451,43 +496,28 @@ void function( ){
 		 * @param {boolean=} novb
 		 */
 		, createStaticObject = function( obj, props, novb ) {
-
-			var tmp = obj
-				, key
-				, vb = false
-			;
-
-			try {
-				if(Object.defineProperty({}, "t", {get : function() {return 1}})["t"] !== 1) {
-					throw Error;
-				}
-				Object.defineProperties(obj, props);
+			if( _Object_defineProperties ) {
+				_Object_defineProperties(obj, props);
+				return obj;
 			}
-			catch( _e_ ) {
-				if(obj.__defineGetter__) {//Safary phink that he has "state" and "location" properties in 'history' object
-					for(var prop in props) if(_hasOwnProperty(props, prop)) {
-						obj.__defineGetter__(prop, props[prop].get);
-						if(props[prop].set)obj.__defineSetter__(prop, props[prop].set);
-					}
-				}
-				if ( novb ) {
-					return false;
-				}
-				if( __GCC__SUPPORT_IELT9__ )vb = true;
+			else if( novb ) {
+				return obj;
 			}
 
-			if ( __GCC__SUPPORT_IELT9__ && !novb && vb && VBInc ) {
+			if ( __GCC__SUPPORT_IELT9__ && !novb && VBInc ) {
 
-				var staticClass = "StaticClass" + libID + VBInc++
+				var staticClass = "StaticClass" + VBInc++
 					, parts = [ "Class " + staticClass ]
+					, tmp
+					, key
 				;
 
 				// functions for VBScript
 				if ( !( "execVB" in global ) ) {
-					execScript( 'Function execVB(c) ExecuteGlobal(c) End Function', 'VBScript' );
+					global["execScript"]( 'Function execVB(c) ExecuteGlobal(c) End Function', 'VBScript' );
 				}
 				if ( !( "VBCVal" in global ) ) {
-					execScript( 'Function VBCVal(o,r) If IsObject(o) Then Set r=o Else r=o End If End Function', 'VBScript' );
+					global["execScript"]( 'Function VBCVal(o,r) If IsObject(o) Then Set r=o Else r=o End If End Function', 'VBScript' );
 				}
 
 				for( key in obj ) {
@@ -558,8 +588,8 @@ void function( ){
 		 * @param {Object=} state
 		 */
 		, historyStorage = function( state ) {
-			return sessionStorage ? state ? sessionStorage.setItem( SESSION_STORAGE_KEY, JSONStringify( state ) ) :
-					JSONParse( sessionStorage.getItem( SESSION_STORAGE_KEY ) ) || {} : {};
+			return sessionStorage ? state ? sessionStorage.setItem( HISTORY_API_KEY_NAME, JSONStringify( state ) ) :
+					JSONParse( sessionStorage.getItem( HISTORY_API_KEY_NAME ) ) || {} : {};
 		}
 
 		, fireStateChange = function( type, oldURL, newURL ) {
@@ -577,7 +607,7 @@ void function( ){
 			if( newURL != void 0) {
 				newEvent["newUrl"] = newURL;
 			}
-			newEvent["__history_shim__"] = true;
+			newEvent[ HISTORY_API_KEY_NAME ] = true;
 
 			if( !html5HistoryAPISupports && type == void 0 && global.onpopstate) {
 				global.onpopstate(newEvent);
@@ -625,8 +655,10 @@ void function( ){
 					}
 				},
 
-				change = function( e ) {
-					if(e["__history_shim__"])return;
+				change = function( event ) {
+					if( event[ HISTORY_API_KEY_NAME ] ) {
+						return;
+					}
 
 /*					//TODO::// Chrome(webkit?) fire popstate for hashchange
 
@@ -645,8 +677,8 @@ void function( ){
 						return skipHashChange = 0;
 					}
 
-					var oldUrl = e.oldURL || oldURL
-						, newUrl = oldURL = e.newURL || urlObject._href
+					var oldUrl = event.oldURL || oldURL
+						, newUrl = oldURL = event.newURL || urlObject._href
 						, oldHash = oldUrl.replace( /^.*?(#|$)/, "" )
 						, newHash = newUrl.replace( /^.*?(#|$)/, "" )
 					;
@@ -695,6 +727,7 @@ void function( ){
 					initialFire = 0;
 				}
 				global.removeEventListener( "popstate", fistPopStateChange_bug, false );
+				fistPopStateChange_bug = null;
 			}
 			if( global.addEventListener ) {
 				global.addEventListener( "popstate", fistPopStateChange_bug, false );
@@ -727,7 +760,7 @@ void function( ){
 
 			if ( VBInc && __GCC__SUPPORT_IELT9__ ) {
 				// override global History object and onhashchange property in window
-				execScript( 'Public history, onhashchange', 'VBScript' );
+				global["execScript"]( 'Public history, onhashchange', 'VBScript' );
 			}
 
 			var succsess = "onpopstate" in global || createStaticObject( global, {
@@ -847,11 +880,11 @@ void function( ){
 
 	if(__GCC__JSON_POLLIFIL__) {
 		//https://gist.github.com/1087317
-		if(!JSONStringify) {
+		if( !JSONStringify ) {
 			JSONStringify = function(a,b,c){for(b in(c=a==""+{}&&[])&&a)c.push(JSONStringify(b)+":"+JSONStringify(a[b]));return""+a===a?'"'+a+'"':a&&a.map?"["+a.map(JSONStringify)+"]":c?"{"+c+"}":a};
 		}
 
-		if(!JSONParse) {
+		if( !JSONParse ) {
 			JSONParse = function( source ) {
 				return source ? (new Function( "return " + source ))() : null;
 			}
@@ -1065,7 +1098,7 @@ void function( ){
 				if ( IElt10_iframe["storage"] ) {
 					var state = {};
 					state[ normalizeUrl()._href ] = IElt10_iframe["storage"];
-					_document.cookie = "_historyAPI=" + escape( JSONStringify( state ) );
+					_document.cookie = HISTORY_API_KEY_NAME + "=" + escape( JSONStringify( state ) );
 				}
 				clearInterval( hashCheckerHandler );
 			} );
@@ -1077,7 +1110,7 @@ void function( ){
 				} catch( _e_ ) {}
 			}
 
-		})( _document.cookie.split( "_historyAPI=" ), normalizeUrl()._href );
+		})( _document.cookie.split( HISTORY_API_KEY_NAME + "=" ), normalizeUrl()._href );
 	} //end if(__GCC__SUPPORT_IELT9__)
 	else {
 		// Add other browsers to emulate variable
@@ -1115,5 +1148,6 @@ void function( ){
 		}
 	}
 
-	tmp = libID = VBInc = createStaticObject = void 0;
+	//cleanup
+	tmp = VBInc = createStaticObject = _Object_defineProperties = _unSafeBind = HistoryAccessors = LocationAccessors = null;
 }.call( window );
