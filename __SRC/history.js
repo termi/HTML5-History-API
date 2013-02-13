@@ -33,6 +33,8 @@ var __GCC__LIBRARY_INTERNAL_SETTINGS__ = false;
 /** @define {boolean} */
 var __GCC__SUPPORT_IELT9__ = true;
 /** @define {boolean} */
+var __GCC__SUPPORT_IELT8__ = true;
+/** @define {boolean} */
 var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
 /** @define {boolean} */
 var __GCC__ECMA_SCRIPT_BIND_SHIM__ = true;
@@ -43,7 +45,7 @@ var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
 // [[[|||---=== GCC DEFINES END ===---|||]]]
 /*
 if __GCC__SUPPORT_IELT9__ == TRUE
-	@output_file_name = history.ielt9.js
+	@output_file_name = history.ielt8.js
 */
 
 // CONFIG
@@ -83,12 +85,18 @@ void function( ){
 
 	var	tmp = global["JSON"] || {}
 
+		, JSONParse = tmp["parse"]//tmp == JSON || {}
+		, JSONStringify = tmp["stringify"]//tmp == JSON || {}
+
 		, _document = document
 
 		// HTML tag
 		, _documentElement = _document.documentElement
 
 		, _Event_constructor_ = global.Event
+
+		/** @const */
+		, _Array_slice = __GCC__ECMA_SCRIPT_BIND_SHIM__ ? Array.prototype.slice : void 0
 
 		/** Use native "bind" or unsafe bind for service and performance needs
 		 * @param {Object} object
@@ -103,9 +111,6 @@ void function( ){
 		}
 
 		/** @const */
-  		, _Array_slice = Array.prototype.slice
-
-		/** @const */
 		, _Function_call_ = Function.prototype.call
 
 		/** @const */
@@ -114,15 +119,17 @@ void function( ){
 		// preserve original object of History
 		, windowHistory = global.history || {}
 
+		, windowHistoryPrototype = (tmp = global.history) && (tmp = (tmp.__proto__ || (tmp = tmp.constructor) && tmp.prototype)) && (tmp && tmp != Object.prototype) || global.history
+
 		// obtain a reference to the Location object
 		, windowLocation = global.location
 
 		// Check support HTML5 History API
-		, html5HistoryAPISupports = "pushState" in windowHistory
+		, historyAPISupports = "pushState" in windowHistory
 
 		// If the first event is triggered when the page loads
 		// This behavior is obvious for Chrome and Safari
-		, initialState = html5HistoryAPISupports && windowHistory.state === void 0
+		, initialState = historyAPISupports && windowHistory.state === void 0
 
 		, initialFire = windowLocation.href
 
@@ -130,41 +137,44 @@ void function( ){
 		, historyPushState = windowHistory.pushState
 		, historyReplaceState = windowHistory.replaceState
 
-		, JSONParse = tmp["parse"]//tmp == JSON || {}
-		, JSONStringify = tmp["stringify"]//tmp == JSON || {}
-
 		, sessionStorage = global.sessionStorage
-
-		/** if we are in Internet Explorer 6-10
-		 * @type {number}
-		 */
-		, msie = (tmp = global["ev" + (_document["documentMode"] || _document.attachEvent ? "" : _Array_slice/*just something with toString*/) + "al"]) && tmp("/*@cc_on 1;@*/") && +((/msie (\d+)/i.exec(navigator.userAgent) || [])[1] || 0) || void 0
 
 		// feature detection
 		, _Object_defineProperties = (function() {
-			var obj = {}
-				, result = Object.defineProperties
+			var result = Object.defineProperty && function(obj, properties) {
+					var prop;
+					for(var propName in properties) if(_hasOwnProperty(properties, propName)) {
+						prop = properties[propName];
+						if( !(typeof prop == "object") )prop = {"value": prop};
+						if( !("configurable" in prop) )prop["configurable"] = true;//default - true
+						Object.defineProperty(obj, propName, prop);
+					}
+				}
 			;
+
 			if( result ) {
 				try {
-					result(obj, {"0": {"get" : function(){ return 1 }}});
+					result(windowHistoryPrototype, {"_": {"get" : function(){ return 1 }, "configurable": true}});
 				}
 				catch( _e_ ) {
 					result = null;
 				}
 
-				if( obj["0"] !== 1 ) {
-					result = void 0;
+				if( windowHistoryPrototype["_"] !== 1 ) {
+					result = null;
+				}
+				if( "_" in windowHistoryPrototype ) {
+					delete windowHistoryPrototype["_"];
 				}
 			}
 
-			if( !result && obj.__defineGetter__ ) {
+			if( !result && windowHistoryPrototype.__defineGetter__ ) {
 				result = function(obj, props) {
 					var prop
 						, propName
 					;
 
-					if( obj.__defineGetter__ ) {//Safary phink that he has "state" and "location" properties in 'history' object
+					if( obj.__defineGetter__ ) {//Safary thinks that he has "state" and "location" properties in 'history' object
 						for(propName in props) if( _hasOwnProperty(props, propName) ) {
 							prop = props[propName];
 							if( prop["get"] ) {
@@ -180,29 +190,19 @@ void function( ){
 				}
 			}
 
-			obj = null;
-
 			return result;
 		})()
 
 		// counter of created classes in VBScript
-		, VBInc = __GCC__SUPPORT_IELT9__ ?
-			(
-				(
-					_Object_defineProperties//IE9+
-					|| msie > 8//IE9+
-					|| !msie//w3c browsers
-				) ?
-					0 // Browser support set/get for objects
-					:
-					( new Date() ).getTime()// unique ID of the library needed to run VBScript in IE
-			)
-			:
-			void 0//build without IE<9 support
+		, VBInc = __GCC__SUPPORT_IELT8__
+					&& !_Object_defineProperties
+					&& global["execScript"]//Only IE has this function. I hope so :)
+					&& ( new Date() ).getTime()// unique ID of the library needed to run VBScript in IE
+					|| void 0
 
-		, IElt10_iframe = __GCC__SUPPORT_IELT9__ ? (VBInc ? _document.createElement( 'iframe' ) : 0) : void 0
+		, IElt8_iframe = __GCC__SUPPORT_IELT8__ ? (VBInc ? _document.createElement( 'iframe' ) : 0) : void 0
 
-		, IElt10_events
+		, IElt9_events
 
 		, skipHashChange = 0
 
@@ -255,7 +255,7 @@ void function( ){
 
 					href = windowLocation.href;
 
-					if ( !html5HistoryAPISupports || test ) {
+					if ( !historyAPISupports || test ) {
 						// form the absolute link from the hash
 						href =
 							windowLocation.protocol
@@ -268,7 +268,7 @@ void function( ){
 						;
 					}
 				}
-				else if ( !html5HistoryAPISupports || msie ) {
+				else if ( !historyAPISupports || VBInc ) {
 
 					var current = normalizeUrl()
 						, _pathname = current._pathname
@@ -336,7 +336,9 @@ void function( ){
 		})( _document.createElement("a") )
 
 		// modifiable object of History
-		, History = !VBInc && windowHistory || __GCC__SUPPORT_IELT9__ && {
+		, HistoryPrototype = !VBInc && windowHistoryPrototype
+
+		, _legacyBrowsers_History = __GCC__SUPPORT_IELT8__ && !HistoryPrototype && {
 			// properties to create an object in IE
 			"back": windowHistory.back,
 
@@ -348,18 +350,20 @@ void function( ){
 
 			"replaceState": void 0,
 
-			"emulate": !html5HistoryAPISupports,
+			"emulate": !historyAPISupports,
 
 			"toString": function() {
 				return "[object History]";
 			}
 		}
 
+		, originalWindowLocationDescriptor
+
 		// Accessors for the object History
-		, HistoryAccessors = {
+		, _legacyBrowsers_HistoryAccessors = {
 			"state": {
 				get: function() {
-					return IElt10_iframe && IElt10_iframe["storage"] || historyStorage()[ History.location.href ] || null;
+					return IElt8_iframe && IElt8_iframe["storage"] || historyStorage()[ this.location.href ] || null;
 				}
 			},
 
@@ -371,10 +375,10 @@ void function( ){
 
 			"location": {
 				set: function( val ) {
-					global.location = val;
+					(originalWindowLocationDescriptor || global.location).href = val;
 				},
 				get: function() {
-					return html5HistoryAPISupports ? windowLocation : Location;
+					return historyAPISupports ? windowLocation : Location;
 				}
 			}
 		}
@@ -382,13 +386,13 @@ void function( ){
 		// The new Location object to add it to the object of History
 		, Location = {
 			"assign": function( url ) {
-				windowLocation.assign( html5HistoryAPISupports || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
+				windowLocation.assign( historyAPISupports || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
 			},
 
 			"reload": windowLocation.reload,
 
 			"replace": function( url ) {
-				windowLocation.replace( html5HistoryAPISupports || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
+				windowLocation.replace( historyAPISupports || url.indexOf( "#" ) !== 0 ? url : "#" + normalizeUrl()._nohash + url );
 			},
 
 			"toString": function() {
@@ -467,15 +471,16 @@ void function( ){
 						, urlObject = normalizeUrl()
 					;
 
-					if ( IElt10_iframe ) {
+					if ( IElt8_iframe ) {
 						if ( hash != urlObject._hash ) {
-							History.pushState( null, null, urlObject._nohash + hash );
+							windowHistory.pushState( null, null, urlObject._nohash + hash );
 
 							hashChanged({
 								oldURL: urlObject._href
 							});
 						}
-					} else {
+					}
+					else {
 						windowLocation.hash = "#" + urlObject._nohash + hash;
 					}
 				},
@@ -488,6 +493,29 @@ void function( ){
 				//
 			}
 		}
+
+		, createMutableObjectForIE8 = __GCC__SUPPORT_IELT9__ ? function(defaultResult) {
+			if( !Object.defineProperty ) {
+				return defaultResult;
+			}
+
+			try {
+				Object.defineProperty(defaultResult, "_", {"get": function(){ return 1 }, "configurable": true});
+				if( defaultResult["_"] === 1 ) {
+					delete defaultResult["_"];
+					return defaultResult;
+				}
+			}
+			catch(e){}
+
+			var result = document.createElement("a")
+				, i
+			;
+			for(i in result){ try{ delete result[i]; if( (i in result) && result[i] )result[i] = null}catch(e){} }
+			for(i in defaultResult)result[i] = defaultResult[i];
+
+			return result;
+		} : void 0
 
 		/**
 		 * defineProperties for static objects
@@ -504,7 +532,7 @@ void function( ){
 				return obj;
 			}
 
-			if ( __GCC__SUPPORT_IELT9__ && !novb && VBInc ) {
+			if ( __GCC__SUPPORT_IELT8__ && !novb && VBInc ) {
 
 				var staticClass = "StaticClass" + VBInc++
 					, parts = [ "Class " + staticClass ]
@@ -520,7 +548,7 @@ void function( ){
 					global["execScript"]( 'Function VBCVal(o,r) If IsObject(o) Then Set r=o Else r=o End If End Function', 'VBScript' );
 				}
 
-				for( key in obj ) {
+				for( key in obj ) if( _hasOwnProperty( obj, key ) ) {
 					parts.push("Public [" + key + "]");
 				};
 
@@ -535,30 +563,28 @@ void function( ){
 					}
 				}
 
-				for( key in props ) {
-					if ( _hasOwnProperty( props, key ) ) {
-						if ( props[ key ].get ) {
-							obj["get " + key] = props[ key ].get;
-							parts.push(
-								"Public [get " + key + "]",
-								"Public " + ( key === "(toString)" ? "Default " : "" ) + "Property Get [" + key + "]",
-								"Call VBCVal(me.[get " + key + "].call(me),[" + key + "])",
-								"End Property"
-							);
-
-						}
-						if ( props[ key ].set ) {
-							obj["set " + key] = props[ key ].set;
-							parts.push(
-								"Public [set " + key + "]",
-								"Public Property Let [" + key + "](v)",
-							"Call me.[set " + key + "].call(me,v)",
-							"End Property",
-								"Public Property Set [" + key + "](v)",
-							"Call me.[set " + key + "].call(me,v)",
+				for( key in props ) if( _hasOwnProperty( props, key ) ) {
+					if ( props[ key ].get ) {
+						obj["get " + key] = props[ key ].get;
+						parts.push(
+							"Public [get " + key + "]",
+							"Public " + ( key === "(toString)" ? "Default " : "" ) + "Property Get [" + key + "]",
+							"Call VBCVal(me.[get " + key + "].call(me),[" + key + "])",
 							"End Property"
-							);
-						}
+						);
+
+					}
+					if ( props[ key ].set ) {
+						obj["set " + key] = props[ key ].set;
+						parts.push(
+							"Public [set " + key + "]",
+							"Public Property Let [" + key + "](v)",
+						"Call me.[set " + key + "].call(me,v)",
+						"End Property",
+							"Public Property Set [" + key + "](v)",
+						"Call me.[set " + key + "].call(me,v)",
+						"End Property"
+						);
 					}
 				}
 
@@ -609,7 +635,7 @@ void function( ){
 			}
 			newEvent[ HISTORY_API_KEY_NAME ] = true;
 
-			if( !html5HistoryAPISupports && type == void 0 && global.onpopstate) {
+			if( !historyAPISupports && type == void 0 && global.onpopstate) {
 				global.onpopstate(newEvent);
 			}
 
@@ -619,7 +645,7 @@ void function( ){
 				}
 				else {
 					var _func
-						, handlers = IElt10_events[newEvent.type]
+						, handlers = IElt9_events[newEvent.type]
 					;
 					if( handlers ) for(var i in handlers) {
 						if( handlers.hasOwnProperty(i)
@@ -642,7 +668,7 @@ void function( ){
 		, hashChanged = (function() {
 
 			var windowPopState = global.onpopstate || null
-				, windowHashChange = global.onhashchange || null
+				, windowHashChange = global.onhashchange// 'indefined' if browser unsupported hashchange
 				, popstateFired = 0
 				, initialStateHandler = null
 				, urlObject = normalizeUrl()
@@ -697,7 +723,7 @@ void function( ){
 
 					if ( oldHash != newHash ) {
 						// fire hashchange
-						fireStateChange(2,oldUrl,newUrl)
+						fireStateChange(2, oldUrl, newUrl)
 					}
 				}
 			;
@@ -714,6 +740,15 @@ void function( ){
 				global.addEventListener( "hashchange", change, false );
 			}
 
+			if( windowHashChange === void 0 ) { // TOO old browser, not supported hashchange
+				setInterval(function() {
+					change({});
+				}, 100);
+			}
+
+			if( !windowHashChange ) {
+				windowHashChange = null;
+			}
 
 			function fistPopStateChange_bug(e) {
 				// popstate ignore the event when the document is loaded
@@ -737,28 +772,36 @@ void function( ){
 				}, false );
 			}
 
-			History = createStaticObject( History,
-				__GCC__SUPPORT_IELT9__ && VBInc ?
-					HistoryAccessors // Old IE
-					:
-					windowHistory.state === void 0 ?
-						{
-							// Safari does not support the built-in object state
-							state: HistoryAccessors.state,
+			if( HistoryPrototype ) {
+				createStaticObject( HistoryPrototype, windowHistory.state === void 0 ?
+					{
+						// Safari does not support the built-in object state
+						state: _legacyBrowsers_HistoryAccessors.state,
 
-							// add a location object inside the object History
-							location: HistoryAccessors.location
-						}
+						// add a location object inside the object History
+						location: _legacyBrowsers_HistoryAccessors.location
+					}
 						:
-						{
-							// for all other browsers that work correctly with the history
-							location: HistoryAccessors.location
-						}
-			);
+					{
+						// for all other browsers that work correctly with the history
+						location: _legacyBrowsers_HistoryAccessors.location
+					}
+				);
+			}
+			else if( __GCC__SUPPORT_IELT8__ && VBInc) {
+				_legacyBrowsers_History = createStaticObject( _legacyBrowsers_History, _legacyBrowsers_HistoryAccessors );
+			}
 
-			Location = createStaticObject( Location, LocationAccessors );
+			Location = createStaticObject( __GCC__SUPPORT_IELT9__ ? createMutableObjectForIE8(Location) : Location, LocationAccessors );
 
-			if ( VBInc && __GCC__SUPPORT_IELT9__ ) {
+			/*TODO:: Make this working in IE8
+			if( Location != global["location"] && Object.getOwnPropertyDescriptor ) {
+				originalWindowLocationDescriptor = Object.getOwnPropertyDescriptor(global, "location").value;
+				Object.defineProperty(global, "location", {"get": function(){return Location}, "configurable": true});
+			}
+			*/
+
+			if ( __GCC__SUPPORT_IELT8__ && VBInc ) {
 				// override global History object and onhashchange property in window
 				global["execScript"]( 'Public history, onhashchange', 'VBScript' );
 			}
@@ -778,13 +821,13 @@ void function( ){
 						},
 						set: function( val ) {
 							if ( windowPopState = ( val || null ) ) {
-								!html5HistoryAPISupports && fireInitialState();
+								!historyAPISupports && fireInitialState();
 							}
 						}
 					}
 				}, true );
 
-			if ( __GCC__SUPPORT_IELT9__ && !succsess && !html5HistoryAPISupports ) {
+			if ( __GCC__SUPPORT_IELT9__ && !succsess && !historyAPISupports ) {
 				initialStateHandler = setInterval(function() {
 					if ( global.onpopstate ) {
 						fireInitialState();
@@ -802,7 +845,7 @@ void function( ){
 						, basepath = libraryInternalSettings["basepath"]
 					;
 
-					if ( html5HistoryAPISupports ) {
+					if ( historyAPISupports ) {
 
 						if ( relative != basepath && (new RegExp( "^" + basepath + "$", "i" )).test( path ) ) {
 							windowLocation.href = relative;
@@ -861,7 +904,7 @@ void function( ){
 				}
 			}
 
-			if ( !html5HistoryAPISupports ) {
+			if ( !historyAPISupports ) {
 				if( __GCC__SUPPORT_IELT9__ ) {
 					if( document.addEventListener ) {
 						document.addEventListener("click", documentClickHandler, false);
@@ -876,20 +919,8 @@ void function( ){
 			}
 
 			return change;
-		})();
-
-	if(__GCC__JSON_POLLIFIL__) {
-		//https://gist.github.com/1087317
-		if( !JSONStringify ) {
-			JSONStringify = function(a,b,c){for(b in(c=a==""+{}&&[])&&a)c.push(JSONStringify(b)+":"+JSONStringify(a[b]));return""+a===a?'"'+a+'"':a&&a.map?"["+a.map(JSONStringify)+"]":c?"{"+c+"}":a};
-		}
-
-		if( !JSONParse ) {
-			JSONParse = function( source ) {
-				return source ? (new Function( "return " + source ))() : null;
-			}
-		}
-	}
+		})()
+	;
 
 	if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ ) {
 		try {
@@ -924,14 +955,14 @@ void function( ){
 	}
 
 	if( __GCC__SUPPORT_IELT9__ && !global.addEventListener ) {
-		IElt10_events = {
+		IElt9_events = {
 			"popstate": {}
 			, "hashchange": {}
 		};
-		IElt10_events["onpopstate"] = IElt10_events["popstate"];
-		IElt10_events["onhashchange"] = IElt10_events["hashchange"];
+		IElt9_events["onpopstate"] = IElt9_events["popstate"];
+		IElt9_events["onhashchange"] = IElt9_events["hashchange"];
 		if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
-			IElt10_events["on" + __GCC__CUSTOM_PAGE_CHANGE_EVENT__] = IElt10_events[__GCC__CUSTOM_PAGE_CHANGE_EVENT__] = {};
+			IElt9_events["on" + __GCC__CUSTOM_PAGE_CHANGE_EVENT__] = IElt9_events[__GCC__CUSTOM_PAGE_CHANGE_EVENT__] = {};
 		}
 
 		global.attachEvent = _unSafeBind.call(function(originalAttachEvent, eventName, handler) {
@@ -939,8 +970,8 @@ void function( ){
 				, handlers
 			;
 
-			if( eventName in IElt10_events ) {
-				handlers = IElt10_events[eventName];
+			if( eventName in IElt9_events ) {
+				handlers = IElt9_events[eventName];
 
 				if( !(uuid = handler["uuid"]) ) {
 					uuid = handler["uuid"] = "_" + +new Date();
@@ -959,11 +990,11 @@ void function( ){
 				, handlers
 			;
 
-			if( eventName in IElt10_events ) {
+			if( eventName in IElt9_events ) {
 				uuid = handler["uuid"];
 
 				if( uuid
-					&& (handlers = IElt10_events[eventName])
+					&& (handlers = IElt9_events[eventName])
 				) {
 					delete handlers[uuid];
 				}
@@ -974,7 +1005,7 @@ void function( ){
 		}, global, global.detachEvent);
 	}
 
-	History.pushState = function( state, title, url, replace ) {
+	HistoryPrototype.pushState = function( state, title, url, replace ) {
 		var stateObject = historyStorage()
 			, currentHref = normalizeUrl()._href
 			, urlObject = url && normalizeUrl( url )
@@ -987,7 +1018,7 @@ void function( ){
 			delete stateObject[ currentHref ];
 		}
 
-		if ( ( !html5HistoryAPISupports || initialState ) && sessionStorage && state ) {
+		if ( ( !historyAPISupports || initialState ) && sessionStorage && state ) {
 			stateObject[ url ] = state;
 			historyStorage( stateObject );
 			state = null;
@@ -995,16 +1026,18 @@ void function( ){
 
 		if ( historyPushState && historyReplaceState ) {
 			if ( replace ) {
-				historyReplaceState.call( History, state, title, url );
-			} else {
-				historyPushState.call( History, state, title, url );
+				historyReplaceState.call( this, state, title, url );
+			}
+			else {
+				historyPushState.call( this, state, title, url );
 			}
 		}
 		else if ( urlObject && urlObject._relative != normalizeUrl()._relative ) {
 			skipHashChange = 1;
 			if ( replace ) {
 				windowLocation.replace( "#" + urlObject._special );
-			} else {
+			}
+			else {
 				windowLocation.hash = urlObject._special;
 			}
 		}
@@ -1020,13 +1053,13 @@ void function( ){
 		}
 	};
 
-	History.replaceState = function( state, title, url ) {
-		History.pushState( state, title, url, 1 );
+	HistoryPrototype.replaceState = function( state, title, url ) {
+		this.pushState( state, title, url, 1 );
 	};
 
-	if ( __GCC__SUPPORT_IELT9__ && VBInc ) {
+	if ( __GCC__SUPPORT_IELT8__ && VBInc ) {
 		// replace the original History object in IE
-		global.history = History;
+		global["history"] = _legacyBrowsers_History;
 
 		// If IE version 7 or lower to the enable iframe navigation
 		(function( cookie, currentHref ) {
@@ -1034,7 +1067,7 @@ void function( ){
 				, checker
 			;
 
-			if ( !IElt10_iframe ) return;
+			if ( !IElt8_iframe ) return;
 
 			checker = function() {
 				var href = normalizeUrl()._href;
@@ -1049,17 +1082,17 @@ void function( ){
 			// starting interval for check hash
 			hashCheckerHandler = setInterval( checker, 100 );
 
-			IElt10_iframe.src = "javascript:true;";
-			IElt10_iframe = _documentElement.firstChild.appendChild( IElt10_iframe ).contentWindow;
+			IElt8_iframe.src = "javascript:true;";
+			IElt8_iframe = _documentElement.firstChild.appendChild( IElt8_iframe ).contentWindow;
 
-			History.pushState = function( state, title, url, replace, lfirst ) {
+			HistoryPrototype.pushState = function( state, title, url, replace, lfirst ) {
 
-				var i = IElt10_iframe.document,
+				var i = IElt8_iframe.document,
 					content,
 					urlObject = url && normalizeUrl( url );
 
 				if ( !urlObject /*|| !urlObject._relative//TODO::need this?*/ ) {
-					IElt10_iframe["storage"] = state;
+					IElt8_iframe["storage"] = state;
 					return;
 				}
 
@@ -1068,18 +1101,19 @@ void function( ){
 				}
 
 				if ( replace ) {
-					if ( IElt10_iframe["lfirst"] ) {
+					if ( IElt8_iframe["lfirst"] ) {
 						history.back();
-						History.pushState( state, title, urlObject._href, 0, 1 );
-					} else {
-						IElt10_iframe["storage"] = state;
+						this.pushState( state, title, urlObject._href, 0, 1 );
+					}
+					else {
+						IElt8_iframe["storage"] = state;
 						windowLocation.replace( "#" + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') + urlObject._special );
 					}
 				}
 				else if ( urlObject._href != currentHref || lfirst ) {
-					if ( !IElt10_iframe["lfirst"] ) {
-						IElt10_iframe["lfirst"] = 1;
-						History.pushState( IElt10_iframe["storage"], title, currentHref, 0, 1 );
+					if ( !IElt8_iframe["lfirst"] ) {
+						IElt8_iframe["lfirst"] = 1;
+						this.pushState( IElt8_iframe["storage"], title, currentHref, 0, 1 );
 					}
 					content = [ '<scr' + 'ipt>', 'lfirst=1;', ,'storage=' + JSONStringify( state ) + ';', '</scr' + 'ipt>' ];
 					content[ 2 ] = 'parent.location.hash="' + urlObject._special.replace( /"/g, '\\"' ) + '";';
@@ -1094,10 +1128,10 @@ void function( ){
 				}
 			};
 
-			global.attachEvent( "unload", function() {
-				if ( IElt10_iframe["storage"] ) {
+			global.attachEvent( "onunload", function() {
+				if ( IElt8_iframe["storage"] ) {
 					var state = {};
-					state[ normalizeUrl()._href ] = IElt10_iframe["storage"];
+					state[ normalizeUrl()._href ] = IElt8_iframe["storage"];
 					_document.cookie = HISTORY_API_KEY_NAME + "=" + escape( JSONStringify( state ) );
 				}
 				clearInterval( hashCheckerHandler );
@@ -1106,17 +1140,17 @@ void function( ){
 			if ( cookie.length > 1 ) {
 				cookie = unescape( cookie.pop().split( ";" ).shift() );
 				try {
-					IElt10_iframe["storage"] = JSONParse( cookie )[ normalizeUrl()._href ];
+					IElt8_iframe["storage"] = JSONParse( cookie )[ normalizeUrl()._href ];
 				} catch( _e_ ) {}
 			}
 
 		})( _document.cookie.split( HISTORY_API_KEY_NAME + "=" ), normalizeUrl()._href );
-	} //end if(__GCC__SUPPORT_IELT9__)
+	} //end if(__GCC__SUPPORT_IELT8__)
 	else {
 		// Add other browsers to emulate variable
 		// The object of History, thus, we can learn
 		// If the browser has native support for working with history
-		History["emulate"] = !html5HistoryAPISupports;
+		HistoryPrototype["emulate"] = !historyAPISupports;
 	}
 
 	if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
@@ -1148,6 +1182,21 @@ void function( ){
 		}
 	}
 
+	if( __GCC__JSON_POLLIFIL__ ) {
+		//https://gist.github.com/1087317
+		if( !JSONStringify ) {
+			JSONStringify = function(a,b,c){for(b in(c=a==""+{}&&[])&&a)c.push(JSONStringify(b)+":"+JSONStringify(a[b]));return""+a===a?'"'+a+'"':a&&a.map?"["+a.map(JSONStringify)+"]":c?"{"+c+"}":a};
+		}
+
+		if( !JSONParse ) {
+			JSONParse = function( source ) {
+				return source ? (new Function( "return " + source ))() : null;
+			}
+		}
+	}
+
 	//cleanup
-	tmp = VBInc = createStaticObject = _Object_defineProperties = _unSafeBind = HistoryAccessors = LocationAccessors = null;
+	tmp = VBInc = createStaticObject = _Object_defineProperties = _unSafeBind = _legacyBrowsers_History =
+		_legacyBrowsers_HistoryAccessors = LocationAccessors = windowHistoryPrototype = HistoryPrototype =
+			null;
 }.call( window );

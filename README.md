@@ -1,12 +1,23 @@
 ENGLISH
 =============================================================================================================
 
-### This version required [ES5 and DOM shim](https://github.com/termi/ES5-DOM-SHIM). For version without this required see [HTML5-History-API](https://github.com/devote/HTML5-History-API)
+### This version required [ES5 and DOM shim](https://github.com/termi/ES5-DOM-SHIM)
 
 ## Install
 
-	<!--[if lt IE 9]>
+You can include just "history.ielt8.js" file for support all browsers including IE6+. Or you can use one of compiled files for selective browser support:
+
+	- history.ielt8.js w3c / IE6+
+	- history.ielt9.js w3c / IE8+
+	- history.js w3c / IE9+
+
+Alternatively you can use conditional comments:
+
+	<!--[if IE 8]>
 	<script src="history.ielt9.js"></script>
+	<![endif]-->
+	<!--[if lt IE 8]>
+	<script src="history.ielt8.js"></script>
 	<![endif]-->
 	<!--[if gt IE 8]><!-->
 	<script src="history.js"></script>
@@ -22,8 +33,8 @@ Example of using the library in the pure JS context:
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="text/javascript" src="history.js"></script>
-        <script type="text/javascript">
+        <script src="history.js"></script>
+        <script>
             window.onload = function() {
 
                 // function for the reference is processed when you click on the link
@@ -85,9 +96,9 @@ Example of using the library along with JQuery:
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="text/javascript" src="history.js"></script>
-        <script type="text/javascript" src="jquery.js"></script>
-        <script type="text/javascript">
+        <script src="history.js"></script>
+        <script src="jquery.js"></script>
+        <script>
             $(function() {
 
                 // looking for all the links and hang on the event, all references in this document
@@ -172,7 +183,7 @@ You can also combine options:
 
 Demo Site: http://history.spb-piksel.ru/
 
-Follow me on Twitter: https://twitter.com/DimaPakhtinov
+Author of original lib on Twitter: https://twitter.com/DimaPakhtinov
 
 
 -------------------------------------------------------------------------------------------------------------
@@ -196,8 +207,8 @@ Follow me on Twitter: https://twitter.com/DimaPakhtinov
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="text/javascript" src="history.js"></script>
-        <script type="text/javascript">
+        <script src="history.js"></script>
+        <script>
             window.onload = function() {
 
                 // функция для ссылок обрабатывается при клике на ссылку
@@ -259,9 +270,9 @@ Follow me on Twitter: https://twitter.com/DimaPakhtinov
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="text/javascript" src="history.js"></script>
-        <script type="text/javascript" src="jquery.js"></script>
-        <script type="text/javascript">
+        <script src="history.js"></script>
+        <script src="jquery.js"></script>
+        <script>
             $(function() {
 
                 // ищем все ссылки и вешаем события на все ссылки в нашем документе
@@ -346,4 +357,4 @@ $( window ).bind( 'popstate', function( event ) {
 
 Демо-сайт: http://history.spb-piksel.ru/
 
-Я в Twitter: https://twitter.com/DimaPakhtinov
+Автор оригинальной библиотеки в Twitter: https://twitter.com/DimaPakhtinov
