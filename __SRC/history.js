@@ -36,6 +36,8 @@ var __GCC__SUPPORT_IELT9__ = true;
 var __GCC__SUPPORT_IELT8__ = true;
 /** @define {boolean} */
 var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
+	/** @define {boolean} */
+	var __GCC__FIX_OPERA_LT_13_HREF_BUG__ = true;
 /** @define {boolean} */
 var __GCC__ECMA_SCRIPT_BIND_SHIM__ = true;
 	/** @define {boolean} */
@@ -119,7 +121,7 @@ void function( ){
 		// preserve original object of History
 		, windowHistory = global.history || {}
 
-		, windowHistoryPrototype = (tmp = global.history) && (tmp = (tmp.__proto__ || (tmp = tmp.constructor) && tmp.prototype)) && (tmp && tmp != Object.prototype) || global.history
+		, windowHistoryPrototype = (tmp = global.history) && (tmp = (tmp.__proto__ || (tmp = tmp.constructor) && tmp.prototype)) && (tmp && tmp != Object.prototype && tmp) || global.history
 
 		// obtain a reference to the Location object
 		, windowLocation = global.location
@@ -1191,6 +1193,39 @@ void function( ){
 		if( !JSONParse ) {
 			JSONParse = function( source ) {
 				return source ? (new Function( "return " + source ))() : null;
+			}
+		}
+	}
+
+	if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__FIX_OPERA_LT_13_HREF_BUG__ && global["opera"] && historyAPISupports ) {
+		// Opera < 13 has a strange bug in href property then you using History API
+		//  description:
+		//  in html: <a id=testlink href='/page1'>page1</a>
+		//  After history.pushState(null, "", "other_page");
+		//  testlink.href != ( location.protocol + "//" + location.host + testlink.getAttribute("href") )
+
+		tmp = document.createElement("a");
+		if( (HistoryPrototype = tmp["__proto__"]) ) {//"HistoryPrototype" here just a free variable
+			if( (tmp = Object.getOwnPropertyDescriptor(tmp, "href")) && ("get" in tmp) ) {
+				Object.defineProperty(HistoryPrototype, "href", (function(originalHrefGet) {
+					this["get"] = function() {
+						var hrefAttrValue = this.getAttribute("href")
+							, _locationHref
+						;
+
+						if( hrefAttrValue && hrefAttrValue[0] == "/" ) {
+							_locationHref = global["location"];
+							_locationHref = _locationHref["protocol"] + "//" + _locationHref["host"];
+
+							return _locationHref + hrefAttrValue;
+						}
+						else {
+							return originalHrefGet.call(this);
+						}
+					};
+
+					return this
+				}).call(tmp, tmp["get"]));
 			}
 		}
 	}
