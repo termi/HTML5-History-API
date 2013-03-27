@@ -1,4 +1,4 @@
-/** @license Copyright 2011-2013, Dmitriy Pakhtinov ( spb.piksel@gmail.com ) and github.com/termi */
+/** @license Copyright 2011-2013, github.com/termi/HTML5-History-API, original by Dmitriy Pakhtinov ( spb.piksel@gmail.com ) */
 /*
  * history API JavaScript Library v3.0.1 beta
  *
@@ -28,6 +28,33 @@
 // ==/ClosureCompiler==
 
 // [[[|||---=== GCC DEFINES START ===---|||]]]
+/*
+<GCC_OUTPUT>
+{
+  "history.ielt8.js":{
+  	"description":"Supports all browsers (w3c + IE6+)"
+  	"defines": {
+ 		__GCC__SUPPORT_IELT9__: true
+ 		, __GCC__SUPPORT_IELT8__: true
+  	}
+  }
+  , "history.ielt9.js":{
+  	"description":"Supports modern w3c browsers and IE8+"
+  	"defines": {
+ 		__GCC__SUPPORT_IELT9__: true
+ 		, __GCC__SUPPORT_IELT8__: false
+  	}
+  }
+  , "history.js":{
+  	"description":"Supports modern w3c browsers and IE9+"
+  	"defines": {
+ 		__GCC__SUPPORT_IELT9__: false
+ 		, __GCC__SUPPORT_IELT8__: false
+  	}
+  }
+}
+</GCC_OUTPUT>
+*/
 /** @define {boolean} */
 var __GCC__LIBRARY_INTERNAL_SETTINGS__ = false;
 /** @define {boolean} */
@@ -39,9 +66,9 @@ var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
 	/** @define {boolean} */
 	var __GCC__FIX_OPERA_LT_13_HREF_BUG__ = true;
 /** @define {boolean} */
-var __GCC__ECMA_SCRIPT_BIND_SHIM__ = true;
+var __GCC__ECMA_SCRIPT_BIND_SHIM__ = false;
 	/** @define {boolean} */
-	var __GCC__JSON_POLLIFIL__ = true;
+	var __GCC__JSON_POLLIFIL__ = false;
 /** @define {string} */
 var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
 // [[[|||---=== GCC DEFINES END ===---|||]]]
@@ -195,6 +222,11 @@ void function( ){
 			return result;
 		})()
 
+		/** if we are in Internet Explorer 6-10
+		 * @type {number}
+		 */
+		, msie = _document["documentMode"] && /msie (\d+)/i.test(navigator.userAgent) // IE 10 doesnt work correctly in relative link
+
 		// counter of created classes in VBScript
 		, VBInc = __GCC__SUPPORT_IELT8__
 					&& !_Object_defineProperties
@@ -270,7 +302,11 @@ void function( ){
 						;
 					}
 				}
-				else if ( !historyAPISupports || VBInc ) {
+				else if (
+					!historyAPISupports // legacy w3c browsers | MSIE 8/9
+					|| VBInc // MSIE 6/7
+					|| msie // MSIE 10 | IE 10 doesnt work correctly in relative link
+				) {
 
 					var current = normalizeUrl()
 						, _pathname = current._pathname
@@ -348,9 +384,9 @@ void function( ){
 
 			"go": windowHistory.go,
 
-			"pushState": void 0,
+			"pushState": _pushState,
 
-			"replaceState": void 0,
+			"replaceState": _replaceState,
 
 			"emulate": !historyAPISupports,
 
@@ -473,9 +509,9 @@ void function( ){
 						, urlObject = normalizeUrl()
 					;
 
-					if ( IElt8_iframe ) {
+					if ( !historyAPISupports ) {
 						if ( hash != urlObject._hash ) {
-							windowHistory.pushState( null, null, urlObject._nohash + hash );
+							(_legacyBrowsers_History || windowHistory).pushState( null, null, urlObject._nohash + hash );
 
 							hashChanged({
 								oldURL: urlObject._href
@@ -766,7 +802,7 @@ void function( ){
 				global.removeEventListener( "popstate", fistPopStateChange_bug, false );
 				fistPopStateChange_bug = null;
 			}
-			if( global.addEventListener ) {
+			if( global.addEventListener && historyAPISupports ) {
 				global.addEventListener( "popstate", fistPopStateChange_bug, false );
 				global.addEventListener( "popstate", function(e) {
 					initialFire = 0;
@@ -1007,7 +1043,15 @@ void function( ){
 		}, global, global.detachEvent);
 	}
 
-	HistoryPrototype.pushState = function( state, title, url, replace ) {
+	if( __GCC__SUPPORT_IELT8__ && VBInc) {
+		// In _legacyBrowsers_History
+	}
+	else {
+		HistoryPrototype.pushState = _pushState;
+		HistoryPrototype.replaceState = _replaceState;
+	}
+
+	function _pushState( state, title, url, replace ) {
 		var stateObject = historyStorage()
 			, currentHref = normalizeUrl()._href
 			, urlObject = url && normalizeUrl( url )
@@ -1053,11 +1097,11 @@ void function( ){
 				_lastPageUrlWithoutHash = currentUrl;
 			}
 		}
-	};
+	}
 
-	HistoryPrototype.replaceState = function( state, title, url ) {
+	function _replaceState( state, title, url ) {
 		this.pushState( state, title, url, 1 );
-	};
+	}
 
 	if ( __GCC__SUPPORT_IELT8__ && VBInc ) {
 		// replace the original History object in IE
@@ -1162,24 +1206,30 @@ void function( ){
 			var currentUrl = normalizeUrl()._nohash;
 
 			if( !_lastPageUrlWithoutHash || (_lastPageUrlWithoutHash != currentUrl) ) {
-				fireStateChange(3, _lastPageUrlWithoutHash, currentUrl);
-
 				_lastPageUrlWithoutHash = currentUrl;
+
+				fireStateChange(3, _lastPageUrlWithoutHash, currentUrl);
 			}
 		};
 
 		if( __GCC__SUPPORT_IELT9__ ) {
 			if( global.addEventListener ) {
-				global.addEventListener("popstate", tmp);
+				if( historyAPISupports ) {
+					global.addEventListener("popstate", tmp);
+				}
 				global.addEventListener("hashchange", tmp);
 			}
 			else {
-				global.attachEvent("popstate", tmp);
+				if( historyAPISupports ) {
+					global.attachEvent("popstate", tmp);
+				}
 				global.attachEvent("hashchange", tmp);
 			}
 		}
 		else {
-			global.addEventListener("popstate", tmp);
+			if( historyAPISupports ) {
+				global.addEventListener("popstate", tmp);
+			}
 			global.addEventListener("hashchange", tmp);
 		}
 	}
@@ -1233,5 +1283,6 @@ void function( ){
 	//cleanup
 	tmp = VBInc = createStaticObject = _Object_defineProperties = _unSafeBind = _legacyBrowsers_History =
 		_legacyBrowsers_HistoryAccessors = LocationAccessors = windowHistoryPrototype = HistoryPrototype =
+			_pushState = _replaceState =
 			null;
 }.call( window );
