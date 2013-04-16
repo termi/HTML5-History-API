@@ -36,13 +36,15 @@
   	"defines": {
  		__GCC__SUPPORT_IELT9__: true
  		, __GCC__SUPPORT_IELT8__: true
+ 		, __GCC__SUPPORT_OPERALT10__: true
   	}
   }
   , "history.ielt9.js":{
-  	"description":"Supports modern w3c browsers and IE8+"
+  	"description":"Supports almost modern w3c browsers and IE8+"
   	"defines": {
  		__GCC__SUPPORT_IELT9__: true
  		, __GCC__SUPPORT_IELT8__: false
+ 		, __GCC__SUPPORT_OPERALT10__: false
   	}
   }
   , "history.js":{
@@ -50,6 +52,7 @@
   	"defines": {
  		__GCC__SUPPORT_IELT9__: false
  		, __GCC__SUPPORT_IELT8__: false
+ 		, __GCC__SUPPORT_OPERALT10__: false
   	}
   }
 }
@@ -65,6 +68,8 @@ var __GCC__SUPPORT_IELT8__ = true;
 var __GCC__SUPPORT_OLD_W3C_BROWSERS__ = true;
 	/** @define {boolean} */
 	var __GCC__FIX_OPERA_LT_13_HREF_BUG__ = true;
+	/** @define {boolean} */
+	var __GCC__SUPPORT_OPERALT10__ = true;
 /** @define {boolean} */
 var __GCC__ECMA_SCRIPT_BIND_SHIM__ = false;
 	/** @define {boolean} */
@@ -72,10 +77,6 @@ var __GCC__ECMA_SCRIPT_BIND_SHIM__ = false;
 /** @define {string} */
 var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
 // [[[|||---=== GCC DEFINES END ===---|||]]]
-/*
-if __GCC__SUPPORT_IELT9__ == TRUE
-	@output_file_name = history.ielt8.js
-*/
 
 // CONFIG
 if(__GCC__LIBRARY_INTERNAL_SETTINGS__) {
@@ -89,40 +90,17 @@ var HISTORY_API_KEY_NAME = '__history_shim__';
 void function( ){
 	"use strict";
 
-	var global = this;
+	var global = this
 
-	//__GCC__SUPPORT_IELT9__ == true
-	/*TODO::
-	if(__GCC__SUPPORT_IELT9__) {
-		var _window_addEventListener = global.addEventListener
-		  , _Object_defineProperties = Object.defineProperties
-		  , _Event = global.Event
-		  , _window_dispatchEvent = global.dispatchEvent
-		  , eventsList = {
-				"onpopstate" : [],
-				"onhashchange" : []
-			}
-		;
-
-		if(!_window_addEventListener)global.addEventListener = function(_type, _handler) {
-			_type = "on" + _type;
-			global.attachEvent(_type, _handler);
-		}
-		function(a,b,c,d){a=a||document;d=a[b="on"+b];b=a[b]=function(e){d=d&&d(e=e||a.event);return(c=c&&b(e))?b:d};a=this}
-	}*/
-	//end __GCC__SUPPORT_IELT9__ == true
-
-	var	tmp = global["JSON"] || {}
-
-		, JSONParse = tmp["parse"]//tmp == JSON || {}
-		, JSONStringify = tmp["stringify"]//tmp == JSON || {}
+		, tmp
 
 		, _document = document
 
 		// HTML tag
 		, _documentElement = _document.documentElement
 
-		, _Event_constructor_ = global.Event
+		/** @const */
+		, _Function_call_ = Function.prototype.call
 
 		/** @const */
 		, _Array_slice = __GCC__ECMA_SCRIPT_BIND_SHIM__ ? Array.prototype.slice : void 0
@@ -139,8 +117,97 @@ void function( ){
 			}
 		}
 
-		/** @const */
-		, _Function_call_ = Function.prototype.call
+		/** if we are in Internet Explorer 6-10
+		 * @type {number}
+		 */
+		, msie = _document["documentMode"] && /msie (\d+)/i.test(navigator.userAgent) // IE 10 doesnt work correctly in relative link
+
+		/** if we are in Opera
+		 * @type {number}
+		 */
+		, _opera = (tmp = global["opera"]) && (typeof (tmp = tmp["version"]) == "function") && +tmp()
+
+		, IElt9_operalt10_events
+	;
+
+
+	if( (__GCC__SUPPORT_IELT9__ && !global.addEventListener)
+		|| (__GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__SUPPORT_OPERALT10__ && _opera < 10 )
+	) {
+		IElt9_operalt10_events = {
+			"popstate": {}
+			, "hashchange": {}
+		};
+		IElt9_operalt10_events["onpopstate"] = IElt9_operalt10_events["popstate"];
+		IElt9_operalt10_events["onhashchange"] = IElt9_operalt10_events["hashchange"];
+		if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
+			IElt9_operalt10_events["on" + __GCC__CUSTOM_PAGE_CHANGE_EVENT__] = IElt9_operalt10_events[__GCC__CUSTOM_PAGE_CHANGE_EVENT__] = {};
+		}
+
+		if( __GCC__SUPPORT_IELT9__ && !(__GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__SUPPORT_OPERALT10__) ) {
+			tmp = "attachEvent";
+		}
+		else if( !__GCC__SUPPORT_IELT9__ && __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__SUPPORT_OPERALT10__ ) {
+			tmp = "addEventListener";
+		}
+		else {
+			tmp = global.addEventListener ? "addEventListener" : "attachEvent";
+		}
+
+		global[tmp] = _unSafeBind.call(function(originalAttachEvent, eventName, handler) {
+			var uuid
+				, handlers
+			;
+
+			if( eventName in IElt9_operalt10_events ) {
+				handlers = IElt9_operalt10_events[eventName];
+
+				if( !(uuid = handler["uuid"]) ) {
+					uuid = handler["uuid"] = "_" + +new Date();
+				}
+				if( !handlers[uuid] ) {
+					handlers[uuid] = handler;
+				}
+			}
+
+			_Function_call_.call(originalAttachEvent, global, eventName, handler, false);
+		}, global, global[tmp]);
+
+		if( __GCC__SUPPORT_IELT9__ && !(__GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__SUPPORT_OPERALT10__) ) {
+			tmp = "detachEvent";
+		}
+		else if( !__GCC__SUPPORT_IELT9__ && __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__SUPPORT_OPERALT10__ ) {
+			tmp = "removeEventListener";
+		}
+		else {
+			tmp = global.addEventListener ? "removeEventListener" : "detachEvent";
+		}
+
+		global[tmp] = _unSafeBind.call(function(originalDetachEvent, eventName, handler) {
+			var uuid
+				, handlers
+			;
+
+			if( eventName in IElt9_operalt10_events ) {
+				uuid = handler["uuid"];
+
+				if( uuid
+					&& (handlers = IElt9_operalt10_events[eventName])
+					) {
+					delete handlers[uuid];
+				}
+			}
+
+			_Function_call_.call(originalDetachEvent, global, eventName, handler, false);
+		}, global, global[tmp]);
+	};
+
+	tmp = global["JSON"] || {};
+
+	var	JSONParse = tmp["parse"]//tmp == JSON || {}
+		, JSONStringify = tmp["stringify"]//tmp == JSON || {}
+
+		, _Event_constructor_ = global.Event
 
 		/** @const */
 		, _hasOwnProperty = _unSafeBind.call(_Function_call_, Object.prototype.hasOwnProperty)
@@ -222,11 +289,6 @@ void function( ){
 			return result;
 		})()
 
-		/** if we are in Internet Explorer 6-10
-		 * @type {number}
-		 */
-		, msie = _document["documentMode"] && /msie (\d+)/i.test(navigator.userAgent) // IE 10 doesnt work correctly in relative link
-
 		// counter of created classes in VBScript
 		, VBInc = __GCC__SUPPORT_IELT8__
 					&& !_Object_defineProperties
@@ -235,8 +297,6 @@ void function( ){
 					|| void 0
 
 		, IElt8_iframe = __GCC__SUPPORT_IELT8__ ? (VBInc ? _document.createElement( 'iframe' ) : 0) : void 0
-
-		, IElt9_events
 
 		, skipHashChange = 0
 
@@ -303,9 +363,9 @@ void function( ){
 					}
 				}
 				else if (
-					!historyAPISupports // legacy w3c browsers | MSIE 8/9
+					!historyAPISupports // legacy w3c browsers + MSIE 8/9
 					|| VBInc // MSIE 6/7
-					|| msie // MSIE 10 | IE 10 doesnt work correctly in relative link
+					|| msie // MSIE 10 - IE 10 doesnt work correctly in relative link
 				) {
 
 					var current = normalizeUrl()
@@ -352,7 +412,7 @@ void function( ){
 					// relative link, no protocol, no host
 					relative = pathname + aElement.search + aElement.hash;
 					// special links for set to hash-link, if browser not support History API
-					nohash = (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? pathname.replace( RE_PATH_REPLACER, sets["type"] ) : pathname) + aElement.search;
+					nohash = (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? pathname.replace( RE_PATH_REPLACER, libraryInternalSettings["type"] ) : pathname) + aElement.search;
 					special = nohash + aElement.hash;
 				}
 
@@ -549,7 +609,7 @@ void function( ){
 			var result = document.createElement("a")
 				, i
 			;
-			for(i in result){ try{ delete result[i]; if( (i in result) && result[i] )result[i] = null}catch(e){} }
+			for(i in result){ try{ delete result[i]; }catch(e){} }
 			for(i in defaultResult)result[i] = defaultResult[i];
 
 			return result;
@@ -677,13 +737,17 @@ void function( ){
 				global.onpopstate(newEvent);
 			}
 
-			if( __GCC__SUPPORT_IELT9__ ) {
-				if( global.dispatchEvent ) {
+			if( __GCC__SUPPORT_IELT9__
+				|| __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__SUPPORT_OPERALT10__
+			) {
+				if( global.dispatchEvent
+					&& !(__GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__SUPPORT_OPERALT10__ && _opera < 10)
+				) {
 					global.dispatchEvent(newEvent);
 				}
 				else {
 					var _func
-						, handlers = IElt9_events[newEvent.type]
+						, handlers = IElt9_operalt10_events[newEvent.type]
 					;
 					if( handlers ) for(var i in handlers) {
 						if( handlers.hasOwnProperty(i)
@@ -807,6 +871,22 @@ void function( ){
 				global.addEventListener( "popstate", function(e) {
 					initialFire = 0;
 					popstateFired = 1;
+					if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__FIX_OPERA_LT_13_HREF_BUG__ && _opera ) {
+						// Opera has a bug with relative links
+						// Opera < 13 has a strange bug in href property then you using History API
+						//  description:
+						//  in html: <a id=testlink href='?action'>page1</a>
+						//  After history.pushState(null, "", "other_page");
+						//  testlink.href != ( location.protocol + "//" + location.host + location.pathname + testlink.getAttribute("href") )
+						historyReplaceState.call(
+							windowHistory
+							, e.state
+							//FIXME Сделать что-нибудь с document.title, сейчас он не изменяется при pushState и при popstate
+							//  Например можно сделать "свой" state в объекте event[PopStateEvent]
+							, document.title
+							, location.href
+						);
+					}
 				}, false );
 			}
 
@@ -992,57 +1072,6 @@ void function( ){
 		}
 	}
 
-	if( __GCC__SUPPORT_IELT9__ && !global.addEventListener ) {
-		IElt9_events = {
-			"popstate": {}
-			, "hashchange": {}
-		};
-		IElt9_events["onpopstate"] = IElt9_events["popstate"];
-		IElt9_events["onhashchange"] = IElt9_events["hashchange"];
-		if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
-			IElt9_events["on" + __GCC__CUSTOM_PAGE_CHANGE_EVENT__] = IElt9_events[__GCC__CUSTOM_PAGE_CHANGE_EVENT__] = {};
-		}
-
-		global.attachEvent = _unSafeBind.call(function(originalAttachEvent, eventName, handler) {
-			var uuid
-				, handlers
-			;
-
-			if( eventName in IElt9_events ) {
-				handlers = IElt9_events[eventName];
-
-				if( !(uuid = handler["uuid"]) ) {
-					uuid = handler["uuid"] = "_" + +new Date();
-				}
-				if( !handlers[uuid] ) {
-					handlers[uuid] = handler;
-				}
-			}
-			else {
-				_Function_call_.call(originalAttachEvent, global, eventName, handler);
-			}
-		}, global, global.attachEvent);
-
-		global.detachEvent = _unSafeBind.call(function(originalDetachEvent, eventName, handler) {
-			var uuid
-				, handlers
-			;
-
-			if( eventName in IElt9_events ) {
-				uuid = handler["uuid"];
-
-				if( uuid
-					&& (handlers = IElt9_events[eventName])
-				) {
-					delete handlers[uuid];
-				}
-			}
-			else {
-				_Function_call_.call(originalDetachEvent, global, eventName, handler);
-			}
-		}, global, global.detachEvent);
-	}
-
 	if( __GCC__SUPPORT_IELT8__ && VBInc) {
 		// In _legacyBrowsers_History
 	}
@@ -1075,7 +1104,19 @@ void function( ){
 				historyReplaceState.call( this, state, title, url );
 			}
 			else {
-				historyPushState.call( this, state, title, url );
+				if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__FIX_OPERA_LT_13_HREF_BUG__ && _opera && urlObject._pathname == "/" ) {
+					// Opera has a bug with relative links
+					// Opera < 13 has a strange bug in href property then you using History API
+					//  description:
+					//  in html: <a id=testlink href='?action'>page1</a>
+					//  After history.pushState(null, "", "other_page");
+					//  testlink.href != ( location.protocol + "//" + location.host + location.pathname + testlink.getAttribute("href") )
+					historyPushState.call( this, state, title, url + "?" );
+					historyReplaceState.call( this, state, title, url );
+				}
+				else {
+					historyPushState.call( this, state, title, url );
+				}
 			}
 		}
 		else if ( urlObject && urlObject._relative != normalizeUrl()._relative ) {
@@ -1161,7 +1202,7 @@ void function( ){
 						IElt8_iframe["lfirst"] = 1;
 						this.pushState( IElt8_iframe["storage"], title, currentHref, 0, 1 );
 					}
-					content = [ '<scr' + 'ipt>', 'lfirst=1;', ,'storage=' + JSONStringify( state ) + ';', '</scr' + 'ipt>' ];
+					content = [ '\x3cscript\x3e', 'lfirst=1;', 0,'storage=' + JSONStringify( state ) + ';', '\x3c/script\x3e' ];
 					content[ 2 ] = 'parent.location.hash="' + urlObject._special.replace( /"/g, '\\"' ) + '";';
 					i.open();
 					i.write( content.join("") );
@@ -1200,37 +1241,25 @@ void function( ){
 	}
 
 	if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
-		var _lastPageUrlWithoutHash = "";
+		var _lastPageUrlWithoutHash = normalizeUrl()._nohash;
 
 		tmp = function() {
 			var currentUrl = normalizeUrl()._nohash;
 
 			if( !_lastPageUrlWithoutHash || (_lastPageUrlWithoutHash != currentUrl) ) {
-				_lastPageUrlWithoutHash = currentUrl;
-
 				fireStateChange(3, _lastPageUrlWithoutHash, currentUrl);
+
+				_lastPageUrlWithoutHash = currentUrl;
 			}
 		};
 
-		if( __GCC__SUPPORT_IELT9__ ) {
-			if( global.addEventListener ) {
-				if( historyAPISupports ) {
-					global.addEventListener("popstate", tmp);
-				}
-				global.addEventListener("hashchange", tmp);
-			}
-			else {
-				if( historyAPISupports ) {
-					global.attachEvent("popstate", tmp);
-				}
-				global.attachEvent("hashchange", tmp);
-			}
+		if( __GCC__SUPPORT_IELT9__ && !global.addEventListener ) {
+			global.attachEvent("popstate", tmp, false);
+			global.attachEvent("hashchange", tmp, false);
 		}
 		else {
-			if( historyAPISupports ) {
-				global.addEventListener("popstate", tmp);
-			}
-			global.addEventListener("hashchange", tmp);
+			global.addEventListener("popstate", tmp, false);
+			global.addEventListener("hashchange", tmp, false);
 		}
 	}
 
@@ -1243,39 +1272,6 @@ void function( ){
 		if( !JSONParse ) {
 			JSONParse = function( source ) {
 				return source ? (new Function( "return " + source ))() : null;
-			}
-		}
-	}
-
-	if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__FIX_OPERA_LT_13_HREF_BUG__ && global["opera"] && historyAPISupports ) {
-		// Opera < 13 has a strange bug in href property then you using History API
-		//  description:
-		//  in html: <a id=testlink href='/page1'>page1</a>
-		//  After history.pushState(null, "", "other_page");
-		//  testlink.href != ( location.protocol + "//" + location.host + testlink.getAttribute("href") )
-
-		tmp = document.createElement("a");
-		if( (HistoryPrototype = tmp["__proto__"]) ) {//"HistoryPrototype" here just a free variable
-			if( (tmp = Object.getOwnPropertyDescriptor(tmp, "href")) && ("get" in tmp) ) {
-				Object.defineProperty(HistoryPrototype, "href", (function(originalHrefGet) {
-					this["get"] = function() {
-						var hrefAttrValue = this.getAttribute("href")
-							, _locationHref
-						;
-
-						if( hrefAttrValue && hrefAttrValue[0] == "/" ) {
-							_locationHref = global["location"];
-							_locationHref = _locationHref["protocol"] + "//" + _locationHref["host"];
-
-							return _locationHref + hrefAttrValue;
-						}
-						else {
-							return originalHrefGet.call(this);
-						}
-					};
-
-					return this
-				}).call(tmp, tmp["get"]));
 			}
 		}
 	}

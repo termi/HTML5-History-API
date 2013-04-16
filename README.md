@@ -1,8 +1,6 @@
 ENGLISH
 =============================================================================================================
 
-### This version required [ES5 and DOM shim](https://github.com/termi/ES5-DOM-SHIM)
-
 ## Install
 
 You can include just "history.ielt8.js" file for support all browsers including IE6+. Or you can use one of compiled files for selective browser support:
