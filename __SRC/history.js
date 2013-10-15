@@ -1,6 +1,6 @@
 /** @license Copyright 2011-2013, github.com/termi/HTML5-History-API, original by Dmitriy Pakhtinov ( spb.piksel@gmail.com ) */
 /*
- * history API JavaScript Library v3.0.1 beta
+ * history API JavaScript Library v3.5
  *
  * Support: IE6+, FF3+, Opera 9+, Safari, Chrome
  *
@@ -76,6 +76,10 @@ var __GCC__ECMA_SCRIPT_BIND_SHIM__ = false;
 	var __GCC__JSON_POLLIFIL__ = false;
 /** @define {string} */
 var __GCC__CUSTOM_PAGE_CHANGE_EVENT__ = "pagechange";
+/** @define {boolean} */
+var __GCC__FIX_OPERA_AND_WEBKIT_LOCATION__ = true;
+/** @define {boolean} */
+var __GCC__FIX_CHROME_FULLSCREEN_BUG__ = true;
 // [[[|||---=== GCC DEFINES END ===---|||]]]
 
 // CONFIG
@@ -87,12 +91,21 @@ if(__GCC__LIBRARY_INTERNAL_SETTINGS__) {
 var HISTORY_API_KEY_NAME = '__history_shim__';
 // END CONFIG
 
-void function( ){
+(function( ){
 	"use strict";
 
 	var global = this
 
-		, tmp
+		// preserve original object of History
+		, windowHistory = global.history || {}
+	;
+
+	if( windowHistory[HISTORY_API_KEY_NAME] === true ) {
+		// avoid polyfilling twice
+		return;
+	}
+
+	var tmp
 
 		, _document = document
 
@@ -200,38 +213,34 @@ void function( ){
 
 			_Function_call_.call(originalDetachEvent, global, eventName, handler, false);
 		}, global, global[tmp]);
-	};
+	}
 
 	tmp = global["JSON"] || {};
 
 	var	JSONParse = tmp["parse"]//tmp == JSON || {}
 		, JSONStringify = tmp["stringify"]//tmp == JSON || {}
 
-		, _Event_constructor_ = global.Event
+		, _Event_constructor_ = global["Event"]
 
 		/** @const */
 		, _hasOwnProperty = _unSafeBind.call(_Function_call_, Object.prototype.hasOwnProperty)
-
-		// preserve original object of History
-		, windowHistory = global.history || {}
 
 		, windowHistoryPrototype = (tmp = global.history) && (tmp = (tmp.__proto__ || (tmp = tmp.constructor) && tmp.prototype)) && (tmp && tmp != Object.prototype && tmp) || global.history
 
 		// obtain a reference to the Location object
 		, windowLocation = global.location
 
-		// Check support HTML5 History API
-		, historyAPISupports = "pushState" in windowHistory
-
-		// If the first event is triggered when the page loads
-		// This behavior is obvious for Chrome and Safari
-		, initialState = historyAPISupports && windowHistory.state === void 0
-
-		, initialFire = windowLocation.href
+		, initialFire = !_opera && !msie && windowLocation.href
 
 		// Just a reference to the methods
 		, historyPushState = windowHistory.pushState
 		, historyReplaceState = windowHistory.replaceState
+
+		// Check support HTML5 History API
+		, historyAPISupports = !!(historyPushState && historyReplaceState)
+
+		// Safari does not support the built-in object state
+		, hasStateSupport = historyAPISupports && "state" in windowHistory
 
 		, sessionStorage = global.sessionStorage
 
@@ -296,9 +305,7 @@ void function( ){
 					&& ( new Date() ).getTime()// unique ID of the library needed to run VBScript in IE
 					|| void 0
 
-		, IElt8_iframe = __GCC__SUPPORT_IELT8__ ? (VBInc ? _document.createElement( 'iframe' ) : 0) : void 0
-
-		, skipHashChange = 0
+		, IElt8_iframe = __GCC__SUPPORT_IELT8__ ? (VBInc ? _document.createElement( 'iframe' ) : void 0) : void 0
 
 		// Internal settings for this library
 		, libraryInternalSettings = __GCC__LIBRARY_INTERNAL_SETTINGS__ && (function(config, history_js_el) {
@@ -357,8 +364,11 @@ void function( ){
 							+ windowLocation.host
 							+ (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : href.indexOf("#") != -1 ? '/'/*TODO::default_basePath.replace(RE_PATH_FILE_NAME_REPLACER, "")*/ : default_basePath)
 							+ (
-								href.replace( RE_NOT_HASH_REPLACER, '' ) || "#"
+								( // url in hash
+									href.replace( RE_NOT_HASH_REPLACER, '' ) || "#"
 								).replace( __GCC__LIBRARY_INTERNAL_SETTINGS__ ? new RegExp( "^#[\/]?(?:" + libraryInternalSettings["type"] + ")?" ) : /^#[\/]?(?:\/)?/, "" )
+								|| windowLocation.search//TODO check it in IE8+
+							)
 						;
 					}
 				}
@@ -461,7 +471,7 @@ void function( ){
 		, _legacyBrowsers_HistoryAccessors = {
 			"state": {
 				get: function() {
-					return IElt8_iframe && IElt8_iframe["storage"] || historyStorage()[ this.location.href ] || null;
+					return IElt8_iframe && IElt8_iframe["storage"] || historyStorage()[ this.location.href ];
 				}
 			},
 
@@ -592,7 +602,7 @@ void function( ){
 			}
 		}
 
-		, createMutableObjectForIE8 = __GCC__SUPPORT_IELT9__ ? function(defaultResult) {
+		, createMutableObjectForIE8 = __GCC__SUPPORT_IELT9__ || __GCC__FIX_OPERA_AND_WEBKIT_LOCATION__ ? function(defaultResult) {
 			if( !Object.defineProperty ) {
 				return defaultResult;
 			}
@@ -712,29 +722,43 @@ void function( ){
 		 * @param {Object=} state
 		 */
 		, historyStorage = function( state ) {
-			return sessionStorage ? state ? sessionStorage.setItem( HISTORY_API_KEY_NAME, JSONStringify( state ) ) :
-					JSONParse( sessionStorage.getItem( HISTORY_API_KEY_NAME ) ) || {} : {};
+			if( state ) {
+				try {
+					sessionStorage.setItem( HISTORY_API_KEY_NAME, JSONStringify( state ) )
+				}
+				catch(e){}
+			}
+			else {
+				return sessionStorage && JSONParse( sessionStorage.getItem( HISTORY_API_KEY_NAME ) ) || {};
+			}
 		}
 
-		, fireStateChange = function( type, oldURL, newURL ) {
+		, fireStateChange = function( type, oldURL, newURL, statePushed ) {
 			var newEvent = new _Event_constructor_(
-				type == 2 ?
+				type === 2 ?
 					'hashchange'
 					:
-					__GCC__CUSTOM_PAGE_CHANGE_EVENT__ && type == 3 ? __GCC__CUSTOM_PAGE_CHANGE_EVENT__ :
+					__GCC__CUSTOM_PAGE_CHANGE_EVENT__ && type === 3 ? __GCC__CUSTOM_PAGE_CHANGE_EVENT__ :
 					'popstate'
 			);
+			var tmp;
 
-			if( oldURL != void 0 ) {
+			if( oldURL !== void 0 ) {
 				newEvent["oldUrl"] = oldURL;
 			}
-			if( newURL != void 0) {
+			if( newURL !== void 0) {
 				newEvent["newUrl"] = newURL;
 			}
 			newEvent[ HISTORY_API_KEY_NAME ] = true;
 
 			if( !historyAPISupports && type == void 0 && global.onpopstate) {
 				global.onpopstate(newEvent);
+			}
+			else if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ && type === 3 ) {
+				newEvent["popstate"] = !statePushed;
+				if( !_callOnPageChangeOnDispatchEvent && typeof (tmp = global["on" + __GCC__CUSTOM_PAGE_CHANGE_EVENT__]) === "function" ) {
+					tmp.call(global, newEvent);
+				}
 			}
 
 			if( __GCC__SUPPORT_IELT9__
@@ -746,17 +770,16 @@ void function( ){
 					global.dispatchEvent(newEvent);
 				}
 				else {
-					var _func
-						, handlers = IElt9_operalt10_events[newEvent.type]
-					;
+					var handlers = IElt9_operalt10_events[newEvent.type];
+
 					if( handlers ) for(var i in handlers) {
 						if( handlers.hasOwnProperty(i)
 							&& (
-								typeof (_func = handlers[i]) == "function"
-								|| (_func && (typeof _func == "object") && (_func = _func.handleEvent))
+								typeof (tmp = handlers[i]) === "function"
+								|| (tmp && (typeof tmp === "object") && (tmp = tmp.handleEvent))
 							)
 						) {
-							_func.call(global, newEvent);
+							tmp.call(global, newEvent);
 						}
 					}
 
@@ -767,111 +790,114 @@ void function( ){
 			}
 		}
 
-		, hashChanged = (function() {
+		, hashChanged
 
-			var windowPopState = global.onpopstate || null
-				, windowHashChange = global.onhashchange// 'indefined' if browser unsupported hashchange
-				, popstateFired = 0
-				, initialStateHandler = null
-				, urlObject = normalizeUrl()
-				, oldURL = urlObject._href
+		, skipHashChange = false
 
-				, fireInitialState = function() {
-					if ( initialFire && !( initialFire = 0 ) && urlObject._relative !== (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : default_basePath) ) {
-						clearInterval( initialStateHandler );
-						setTimeout( fireStateChange , 10);
-					}
-				},
+		, _callOnPageChangeOnDispatchEvent
+	;
 
-				change = function( event ) {
-					if( event[ HISTORY_API_KEY_NAME ] ) {
-						return;
-					}
+	(function() {
 
-/*					//TODO::// Chrome(webkit?) fire popstate for hashchange
+		var windowPopState = global.onpopstate || null
+			, windowHashChange = global.onhashchange// 'indefined' if browser unsupported hashchange
+			, popstateFired = false
+			, initialStateHandler = null
+			, urlObject = normalizeUrl()
+			, oldURL = urlObject._href
 
-					if( historyPushState ) {
-						return;
-					}
-
-					var hash = windowLocation.hash + "";
-
-					if( hash.substr(0, 2) != "/" + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') )return;
-*/
-					var urlObject = normalizeUrl();
-
-					if ( skipHashChange ) {
-						oldURL = urlObject._href;
-						return skipHashChange = 0;
-					}
-
-					var oldUrl = event.oldURL || oldURL
-						, newUrl = oldURL = event.newURL || urlObject._href
-						, oldHash = oldUrl.replace( /^.*?(#|$)/, "" )
-						, newHash = newUrl.replace( /^.*?(#|$)/, "" )
-					;
-
-					if ( oldUrl != newUrl && !popstateFired ) {
-						// fire popstate
-						fireStateChange(
-							void 0
-							/*, oldUrl//TODO:: need oldUrl ?
-							, newUrl//TODO:: need newUrl ?*/
-						)
-					}
-
-					popstateFired = 0;
-					initialFire = 0;
-
-					if ( oldHash != newHash ) {
-						// fire hashchange
-						fireStateChange(2, oldUrl, newUrl)
-					}
+			, fireInitialState = function() {
+				if ( initialFire && !( initialFire = false ) && urlObject._relative !== (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["basepath"] : default_basePath) ) {
+					clearInterval( initialStateHandler );
+					setTimeout( fireStateChange , 10);
 				}
-			;
+			}
+		;
 
+		hashChanged = function( event ) {
+			if( event[ HISTORY_API_KEY_NAME ] ) {
+				return;
+			}
+
+			/*					//TODO::// Chrome(webkit?) fire popstate for hashchange
+
+			 if( historyPushState ) {
+			 return;
+			 }
+
+			 var hash = windowLocation.hash + "";
+
+			 if( hash.substr(0, 2) != "/" + (__GCC__LIBRARY_INTERNAL_SETTINGS__ ? libraryInternalSettings["type"] : '/') )return;
+			 */
+			var urlObject = normalizeUrl();
+
+			if ( skipHashChange ) {
+				oldURL = urlObject._href;
+				return skipHashChange = false;
+			}
+
+			var oldUrl = event.oldURL || oldURL
+				, newUrl = oldURL = event.newURL || urlObject._href
+				, oldHash = oldUrl.replace( /^.*?(#|$)/, "" )
+				, newHash = newUrl.replace( /^.*?(#|$)/, "" )
+				;
+
+			if ( oldUrl != newUrl && !popstateFired ) {
+				// fire popstate
+				fireStateChange(
+					void 0
+					/*, oldUrl//TODO:: need oldUrl ?
+					 , newUrl//TODO:: need newUrl ?*/
+				)
+			}
+
+			popstateFired = false;
+			initialFire = false;
+
+			if ( oldHash != newHash ) {
+				// fire hashchange
+				fireStateChange(2, oldUrl, newUrl)
+			}
+		};
+
+		if( !historyAPISupports ) {
 			if( __GCC__SUPPORT_IELT9__ ) {
 				if( global.addEventListener ) {
-					global.addEventListener( "hashchange", change, false );
+					global.addEventListener( "hashchange", hashChanged, false );
 				}
 				else {
-					global.attachEvent( "onhashchange", change );
+					global.attachEvent( "onhashchange", hashChanged );
 				}
 			}
 			else {
-				global.addEventListener( "hashchange", change, false );
+				global.addEventListener( "hashchange", hashChanged, false );
 			}
 
 			if( windowHashChange === void 0 ) { // TOO old browser, not supported hashchange
 				setInterval(function() {
-					change({});
+					hashChanged({});
 				}, 100);
 			}
 
 			if( !windowHashChange ) {
 				windowHashChange = null;
 			}
-
-			function fistPopStateChange_bug(e) {
-				// popstate ignore the event when the document is loaded
-				if ( initialFire === windowLocation.href ) {
-					if(e.stopImmediatePropagation) {
-						e.stopImmediatePropagation();
-					}
-					else {
-						e.stopPropagation();
-					}
-					initialFire = 0;
+		}
+		else if( global.addEventListener ) {
+			if( _document.readyState !== "complite" ) {
+				if( initialFire ) {
+					global.addEventListener( "popstate", firstPopStateChange_bug, false );
+					global.addEventListener( "load", function() {
+						setTimeout(firstPopStateChange_bug, 0);
+					}, false );
 				}
-				global.removeEventListener( "popstate", fistPopStateChange_bug, false );
-				fistPopStateChange_bug = null;
-			}
-			if( global.addEventListener && historyAPISupports ) {
-				global.addEventListener( "popstate", fistPopStateChange_bug, false );
+				else {
+					firstPopStateChange_bug = null;
+				}
 				global.addEventListener( "popstate", function(e) {
-					initialFire = 0;
-					popstateFired = 1;
-					if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__FIX_OPERA_LT_13_HREF_BUG__ && _opera ) {
+					initialFire = false;
+					popstateFired = true;
+					if( __GCC__FIX_OPERA_LT_13_HREF_BUG__ && _opera ) {
 						// Opera has a bug with relative links
 						// Opera < 13 has a strange bug in href property then you using History API
 						//  description:
@@ -889,156 +915,216 @@ void function( ){
 					}
 				}, false );
 			}
-
-			if( HistoryPrototype ) {
-				createStaticObject( HistoryPrototype, windowHistory.state === void 0 ?
-					{
-						// Safari does not support the built-in object state
-						state: _legacyBrowsers_HistoryAccessors.state,
-
-						// add a location object inside the object History
-						location: _legacyBrowsers_HistoryAccessors.location
-					}
-						:
-					{
-						// for all other browsers that work correctly with the history
-						location: _legacyBrowsers_HistoryAccessors.location
-					}
-				);
+			else {
+				initialFire = false;
 			}
-			else if( __GCC__SUPPORT_IELT8__ && VBInc) {
-				_legacyBrowsers_History = createStaticObject( _legacyBrowsers_History, _legacyBrowsers_HistoryAccessors );
+		}
+
+		function firstPopStateChange_bug(e) {
+			// popstate ignore the event when the document is loaded
+			if ( e && initialFire === windowLocation.href ) {
+				if(e.stopImmediatePropagation) {
+					e.stopImmediatePropagation();
+				}
+				else {
+					e.stopPropagation();
+				}
 			}
+			initialFire = false;
+			global.removeEventListener( "popstate", firstPopStateChange_bug, false );
+			firstPopStateChange_bug = null;
+		}
 
-			Location = createStaticObject( __GCC__SUPPORT_IELT9__ ? createMutableObjectForIE8(Location) : Location, LocationAccessors );
-
-			/*TODO:: Make this working in IE8
-			if( Location != global["location"] && Object.getOwnPropertyDescriptor ) {
-				originalWindowLocationDescriptor = Object.getOwnPropertyDescriptor(global, "location").value;
-				Object.defineProperty(global, "location", {"get": function(){return Location}, "configurable": true});
+		// avoid polyfilling twice
+		_legacyBrowsers_HistoryAccessors[ HISTORY_API_KEY_NAME ] = {
+			get: function() {
+				return true;
 			}
-			*/
+		};
 
-			if ( __GCC__SUPPORT_IELT8__ && VBInc ) {
-				// override global History object and onhashchange property in window
-				global["execScript"]( 'Public history, onhashchange', 'VBScript' );
-			}
-
-			var succsess = "onpopstate" in global || createStaticObject( global, {
-					"onhashchange": {
-						get: function() {
-							return windowHashChange;
-						},
-						set: function( val ) {
-							windowHashChange = val || null;
-						}
-					},
-					"onpopstate": {
-						get: function() {
-							return windowPopState;
-						},
-						set: function( val ) {
-							if ( windowPopState = ( val || null ) ) {
-								!historyAPISupports && fireInitialState();
-							}
-						}
-					}
-				}, true );
-
-			if ( __GCC__SUPPORT_IELT9__ && !succsess && !historyAPISupports ) {
-				initialStateHandler = setInterval(function() {
-					if ( global.onpopstate ) {
-						fireInitialState();
-					}
-				}, 100);
-			}
-
-			if ( __GCC__LIBRARY_INTERNAL_SETTINGS__ && libraryInternalSettings["redirect"] && global.top == global.self ) {
-
-				if ( window.top == window.self ) {
-
-					var relative = normalizeUrl( null, true )._relative
-						, search = windowLocation.search
-						, path = windowLocation.pathname
-						, basepath = libraryInternalSettings["basepath"]
+		if( HistoryPrototype ) {
+			if( __GCC__FIX_OPERA_AND_WEBKIT_LOCATION__
+				// For Safari and old Chrome
+				//  fix for Opera in the bottom of this file
+				&& (tmp = _document.createElement("a"), tmp.href = "http://g.g/%25", tmp.pathname === "/%")
+				&& "URL" in _document
+			) {
+				_legacyBrowsers_HistoryAccessors.location["get"] = function() {
+					return Location;
+				};
+				LocationAccessors["href"]["get"] = function() {
+					// document.URL return undecoded href
+					return _document["URL"];
+				};
+				LocationAccessors["pathname"]["get"] = function() {
+					var _href = this.href
+						, _search = this.search
+						, _hash = this.hash
+						, _host = this.host
+						, index = _href.indexOf(_host)
 					;
 
-					if ( historyAPISupports ) {
+					return _href.substr(index + _host.length).replace(_search, "").replace(_hash, "");
+				};
 
-						if ( relative != basepath && (new RegExp( "^" + basepath + "$", "i" )).test( path ) ) {
-							windowLocation.href = relative;
-						}
-
-						if ( ( new RegExp( "^" + basepath + "$", "i" ) ).test( path + '/' ) ) {
-							windowLocation.href = basepath;
-						} else if ( !(new RegExp( "^" + basepath, "i" )).test( path ) ) {
-							windowLocation.href = path.replace(/^\//, basepath ) + search;
-						}
-					}
-					else if ( path != basepath ) {
-						windowLocation.href = basepath + '#' + path.
-							replace( new RegExp( "^" + basepath, "i" ), libraryInternalSettings["type"] ) + search + windowLocation.hash;
+				if( !hasStateSupport ) {
+					_legacyBrowsers_HistoryAccessors.state["get"] = function() {
+						return historyStorage()[ global.location.href ];
 					}
 				}
 			}
 
-			function documentClickHandler( e ) {
-				var event = e || __GCC__SUPPORT_IELT9__ && global["event"]
-					, target = event.target || __GCC__SUPPORT_IELT9__ && event.srcElement
-					, defaultPrevented =
-						__GCC__SUPPORT_IELT9__ ? ("defaultPrevented" in event ? event["defaultPrevented"] : event.returnValue === false)
-						:
-						event["defaultPrevented"]
-				;
+			tmp = {};
+			// add a location object inside the object History
+			tmp["location"] = _legacyBrowsers_HistoryAccessors.location;
+			if( !hasStateSupport ) {
+				// Safari does not support the built-in object state
+				tmp["state"] = _legacyBrowsers_HistoryAccessors.state;
+			}
+			tmp[ HISTORY_API_KEY_NAME ] = _legacyBrowsers_HistoryAccessors[HISTORY_API_KEY_NAME];
 
-				if ( target && target.nodeName === "A" && !defaultPrevented ) {
+			createStaticObject(HistoryPrototype, tmp);
+		}
+		else if( __GCC__SUPPORT_IELT8__ && VBInc) {
+			_legacyBrowsers_History = createStaticObject( _legacyBrowsers_History, _legacyBrowsers_HistoryAccessors );
+		}
 
-					e = normalizeUrl( target.getAttribute( "href", 2 ), true );
+		Location = createStaticObject(
+			( __GCC__SUPPORT_IELT9__ )
+				&& _Object_defineProperties
+				?
+				createMutableObjectForIE8(Location)
+				:
+				Location
+			, LocationAccessors
+		);
 
-					if ( e._hash && e._hash !== "#" && e._hash === e._href.replace( normalizeUrl()._href.split( "#" ).shift(), "" ) ) {
+		/*TODO:: Make this working in IE8
+		 if( Location != global["location"] && Object.getOwnPropertyDescriptor ) {
+		 	//originalWindowLocationDescriptor = Object.getOwnPropertyDescriptor(global, "location").value;
+		 	execScript( 'Public location', 'VBScript');
+		 	Object.defineProperty(window, "location", {value: Location})
+		 	eval("var location = A")
+		 Object.defineProperty(global, "location", {"get": function(){return Location}, "configurable": true});
+		 }
+		 */
 
-						history.location.hash = e._hash;
+		if ( __GCC__SUPPORT_IELT8__ && VBInc ) {
+			// override global History object and onhashchange property in window
+			global["execScript"]( 'Public history, onhashchange', 'VBScript' );
+		}
 
-						e = e._hash.replace( /^#/, '' );
-
-						if ( ( target = document.getElementById( e ) ) && target.id === e && target.nodeName === "A" ) {
-							var rect = target.getBoundingClientRect();
-							window.scrollTo( ( _documentElement.scrollLeft || 0 ),
-								rect.top + ( _documentElement.scrollTop || 0 ) - ( _documentElement.clientTop || 0 ) );
-						}
-
-						if( __GCC__SUPPORT_IELT9__ ) {
-							if ( event.preventDefault ) {
-								event.preventDefault();
-							}
-							else {
-								event.returnValue = false;
-							}
-						}
-						else {
-							event.preventDefault();
-						}
+		var succsess = "onpopstate" in global || createStaticObject( global, {
+			"onhashchange": {
+				get: function() {
+					return windowHashChange;
+				},
+				set: function( val ) {
+					windowHashChange = val || null;
+				}
+			},
+			"onpopstate": {
+				get: function() {
+					return windowPopState;
+				},
+				set: function( val ) {
+					if ( windowPopState = ( val || null ) ) {
+						!historyAPISupports && fireInitialState();
 					}
 				}
 			}
+		}, true );
 
-			if ( !historyAPISupports ) {
+		if ( __GCC__SUPPORT_IELT9__ && !succsess && !historyAPISupports ) {
+			initialStateHandler = setInterval(function() {
+				if ( global.onpopstate ) {
+					fireInitialState();
+				}
+			}, 100);
+		}
+
+		if ( __GCC__LIBRARY_INTERNAL_SETTINGS__ && libraryInternalSettings["redirect"] && global.top == global.self ) {
+
+			if ( window.top == window.self ) {
+
+				var relative = normalizeUrl( null, true )._relative
+					, search = windowLocation.search
+					, path = windowLocation.pathname
+					, basepath = libraryInternalSettings["basepath"]
+					;
+
+				if ( historyAPISupports ) {
+
+					if ( relative != basepath && (new RegExp( "^" + basepath + "$", "i" )).test( path ) ) {
+						windowLocation.href = relative;
+					}
+
+					if ( ( new RegExp( "^" + basepath + "$", "i" ) ).test( path + '/' ) ) {
+						windowLocation.href = basepath;
+					} else if ( !(new RegExp( "^" + basepath, "i" )).test( path ) ) {
+						windowLocation.href = path.replace(/^\//, basepath ) + search;
+					}
+				}
+				else if ( path != basepath ) {
+					windowLocation.href = basepath + '#' + path.
+						replace( new RegExp( "^" + basepath, "i" ), libraryInternalSettings["type"] ) + search + windowLocation.hash;
+				}
+			}
+		}
+
+		if ( !historyAPISupports ) {
+			if( __GCC__SUPPORT_IELT9__ ) {
+				if( document.addEventListener ) {
+					document.addEventListener("click", documentClickHandler, false);
+				}
+				else {
+					document.attachEvent("onclick", documentClickHandler)
+				}
+			}
+			else {
+				document.addEventListener("click", documentClickHandler, false);
+			}
+		}
+	})();
+
+	function documentClickHandler( e ) {
+		var event = e || __GCC__SUPPORT_IELT9__ && global["event"]
+			, target = event.target || __GCC__SUPPORT_IELT9__ && event.srcElement
+			, defaultPrevented =
+				__GCC__SUPPORT_IELT9__ ? ("defaultPrevented" in event ? event["defaultPrevented"] : event["returnValue"] === false)
+					:
+					event["defaultPrevented"]
+			;
+
+		if ( target && target.nodeName === "A" && !defaultPrevented ) {
+
+			e = normalizeUrl( target.getAttribute( "href", 2 ), true );
+
+			if ( e._hash && e._hash !== "#" && e._hash === e._href.replace( normalizeUrl()._href.split( "#" ).shift(), "" ) ) {
+
+				skipHashChange = true;
+				history.location.hash = e._hash;
+
+				e = e._hash.replace( /^#/, '' );
+
+				if ( ( target = document.getElementById( e ) ) && target.id === e ) {
+					target.scrollIntoView();
+				}
+
 				if( __GCC__SUPPORT_IELT9__ ) {
-					if( document.addEventListener ) {
-						document.addEventListener("click", documentClickHandler, false);
+					if ( event.preventDefault ) {
+						event.preventDefault();
 					}
 					else {
-						document.attachEvent("onclick", documentClickHandler)
+						event.returnValue = false;
 					}
 				}
 				else {
-					document.addEventListener("click", documentClickHandler, false);
+					event.preventDefault();
 				}
 			}
-
-			return change;
-		})()
-	;
+		}
+	}
 
 	if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ ) {
 		try {
@@ -1072,6 +1158,18 @@ void function( ){
 		}
 	}
 
+	_callOnPageChangeOnDispatchEvent = _documentElement.dispatchEvent !== void 0 && (!_opera || _opera > 10) && (function(testElement) {
+		// Opera call onpagechange on window.dispatchEvent(new Event("pagechange"))
+		var result = false;
+		if( testElement.dispatchEvent ) {
+			testElement["on" + __GCC__CUSTOM_PAGE_CHANGE_EVENT__] = function() {
+				result = true;
+			};
+			testElement.dispatchEvent(new _Event_constructor_(__GCC__CUSTOM_PAGE_CHANGE_EVENT__));
+		}
+		return result;
+	})(document.createElement("_"));
+
 	if( __GCC__SUPPORT_IELT8__ && VBInc) {
 		// In _legacyBrowsers_History
 	}
@@ -1081,30 +1179,21 @@ void function( ){
 	}
 
 	function _pushState( state, title, url, replace ) {
-		var stateObject = historyStorage()
-			, currentHref = normalizeUrl()._href
-			, urlObject = url && normalizeUrl( url )
-		;
+		var urlObject = url && normalizeUrl( url );
 
-		initialFire = 0;
-		url = urlObject ? urlObject._href : currentHref;
-
-		if ( replace && stateObject[ currentHref ] ) {
-			delete stateObject[ currentHref ];
-		}
-
-		if ( ( !historyAPISupports || initialState ) && sessionStorage && state ) {
-			stateObject[ url ] = state;
-			historyStorage( stateObject );
-			state = null;
-		}
-
-		if ( historyPushState && historyReplaceState ) {
-			if ( replace ) {
+		if ( historyAPISupports ) {
+			if ( replace
+				// Если урл не поменялся, то вызываем history.replaceState
+				// TODO:: В нативном History API мы можем запушить новый state без изменения урла
+				|| (
+					urlObject
+					&& urlObject._href == normalizeUrl()._href
+				)
+			) {
 				historyReplaceState.call( this, state, title, url );
 			}
 			else {
-				if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__FIX_OPERA_LT_13_HREF_BUG__ && _opera && urlObject._pathname == "/" ) {
+				if( __GCC__SUPPORT_OLD_W3C_BROWSERS__ && __GCC__FIX_OPERA_LT_13_HREF_BUG__ && _opera && urlObject && urlObject._pathname == "/" ) {
 					// Opera has a bug with relative links
 					// Opera < 13 has a strange bug in href property then you using History API
 					//  description:
@@ -1119,13 +1208,37 @@ void function( ){
 				}
 			}
 		}
-		else if ( urlObject && urlObject._relative != normalizeUrl()._relative ) {
-			skipHashChange = 1;
-			if ( replace ) {
-				windowLocation.replace( "#" + urlObject._special );
+
+		if( !hasStateSupport ) {// browsers without History API support or Safari
+			var stateObject = historyStorage()
+				, currentHref = normalizeUrl()._href
+			;
+
+			urlObject = url && normalizeUrl( url );
+
+			initialFire = false;
+			url = urlObject ? urlObject._href : currentHref;
+
+			if ( replace && stateObject[ currentHref ] ) {
+				delete stateObject[ currentHref ];
 			}
-			else {
-				windowLocation.hash = urlObject._special;
+
+			if ( sessionStorage ) {
+				stateObject[ url ] = state;
+				historyStorage( stateObject );
+				state = null;
+			}
+		}
+
+		if( !historyAPISupports ) {
+			if ( urlObject && urlObject._relative != normalizeUrl()._relative ) {
+				skipHashChange = true;
+				if ( replace ) {
+					windowLocation.replace( "#" + urlObject._special );
+				}
+				else {
+					windowLocation.hash = urlObject._special;
+				}
 			}
 		}
 
@@ -1133,15 +1246,14 @@ void function( ){
 			var currentUrl = normalizeUrl()._nohash;
 
 			if( !_lastPageUrlWithoutHash || (_lastPageUrlWithoutHash != currentUrl) ) {
-				fireStateChange(3, _lastPageUrlWithoutHash, currentUrl);
-
-				_lastPageUrlWithoutHash = currentUrl;
+				fireStateChange(3, _lastPageUrlWithoutHash, _lastPageUrlWithoutHash = currentUrl, true);
 			}
 		}
 	}
 
+
 	function _replaceState( state, title, url ) {
-		this.pushState( state, title, url, 1 );
+		_pushState.call( this, state, title, url, true );
 	}
 
 	if ( __GCC__SUPPORT_IELT8__ && VBInc ) {
@@ -1172,7 +1284,7 @@ void function( ){
 			IElt8_iframe.src = "javascript:true;";
 			IElt8_iframe = _documentElement.firstChild.appendChild( IElt8_iframe ).contentWindow;
 
-			HistoryPrototype.pushState = function( state, title, url, replace, lfirst ) {
+			_legacyBrowsers_History.pushState = function( state, title, url, replace, lfirst ) {
 
 				var i = IElt8_iframe.document,
 					content,
@@ -1190,7 +1302,7 @@ void function( ){
 				if ( replace ) {
 					if ( IElt8_iframe["lfirst"] ) {
 						history.back();
-						this.pushState( state, title, urlObject._href, 0, 1 );
+						_legacyBrowsers_History.pushState( state, title, urlObject._href, 0, 1 );
 					}
 					else {
 						IElt8_iframe["storage"] = state;
@@ -1200,7 +1312,7 @@ void function( ){
 				else if ( urlObject._href != currentHref || lfirst ) {
 					if ( !IElt8_iframe["lfirst"] ) {
 						IElt8_iframe["lfirst"] = 1;
-						this.pushState( IElt8_iframe["storage"], title, currentHref, 0, 1 );
+						_legacyBrowsers_History.pushState( IElt8_iframe["storage"], title, currentHref, 0, 1 );
 					}
 					content = [ '\x3cscript\x3e', 'lfirst=1;', 0,'storage=' + JSONStringify( state ) + ';', '\x3c/script\x3e' ];
 					content[ 2 ] = 'parent.location.hash="' + urlObject._special.replace( /"/g, '\\"' ) + '";';
@@ -1240,22 +1352,154 @@ void function( ){
 		HistoryPrototype["emulate"] = !historyAPISupports;
 	}
 
+	if( __GCC__FIX_OPERA_AND_WEBKIT_LOCATION__ ) {
+		// Opera pathname bug
+		// if location.href is "http://example.com/search/%25"
+		// location.pathname is "/search/%" but should be "/search/%25"
+		if( historyAPISupports
+			&& _opera
+			&& Object.defineProperty
+			&& Object.getOwnPropertyDescriptor
+		) {
+			tmp = Object.getOwnPropertyDescriptor(global["location"], "pathname");
+
+			if( tmp ) {
+				tmp["get"] = function() {
+					var _href = this.href
+						, _search = this.search
+						, _hash = this.hash
+						, _host = this.host
+						, index = _href.indexOf(_host)
+					;
+					return _href.substr(index + _host.length).replace(_search, "").replace(_hash, "");
+				};
+			}
+
+			if( tmp ) {
+				if( global["Location"] && global["Location"].prototype ) {
+					Object.defineProperty(global["Location"].prototype, "pathname", tmp)
+				}
+				Object.defineProperty(global["location"], "pathname", tmp)
+			}
+		}
+	}
+
+	if( __GCC__FIX_CHROME_FULLSCREEN_BUG__ ) {
+		var statesList = [], fullScreenExitPopState = false, fullScreenExitHashChange = false;
+
+		if( historyAPISupports && global["chrome"] ) {
+			tmp = function(e) {
+				var tmp, stopProp;
+
+				if( historyAPISupports === false ) {//in Fullscreen mode
+					if( skipHashChange === true ) {
+						stopProp = true;
+
+						if( e.type === "hashchange" ) {
+							// hashChanged not added to window.addEventListener("hashchange", hashChanged)
+							//  so we need to write this string again
+							skipHashChange = false;
+						}
+					}
+					else if( e.type === "popstate" ) {
+						statesList.pop();
+					}
+				}
+				else if( fullScreenExitPopState === true ) {
+					fullScreenExitPopState = false;
+					stopProp = true;
+
+					while(tmp = statesList.shift()) {
+						historyPushState.call(windowHistory, tmp._state, tmp._title, tmp._url);
+					}
+				}
+				else if( fullScreenExitHashChange === true ) {
+					fullScreenExitHashChange = false;
+					stopProp = true;
+				}
+
+				if( stopProp ) {
+					e.stopPropagation();
+					if( e.stopImmediatePropagation ) {
+						e.stopImmediatePropagation()
+					}
+				}
+			};
+			global.addEventListener("popstate", tmp, true);
+			global.addEventListener("hashchange", tmp, true);
+
+			tmp = function() {
+				var fullscreenEnabled = "fullscreenEnabled" in _document ? _document["fullscreenEnabled"] : _document["webkitIsFullScreen"]
+					, tmp
+				;
+
+				if( fullscreenEnabled && historyAPISupports ) {
+					// switch to hash navigation
+
+					historyAPISupports = false;
+					document.addEventListener("click", documentClickHandler, true);
+
+//					windowHistory.replaceState(windowHistory.state, _document.title, windowHistory.location.href);
+
+					tmp = function pushState(state, title) {
+						var result;
+						historyPushState.call(this, state, title, window.location.href);
+						result = this.replaceState["__origin"].apply(this, arguments);
+						statesList.push({_url: this.location.href, _state: state, _title: title});
+						return result;
+					};
+					tmp["__origin"] = windowHistory.pushState;
+					windowHistory.pushState = tmp;
+					tmp = function replaceState(state, title) {
+						var result;
+						historyReplaceState.call(this, state, title, window.location.href);
+						result = replaceState["__origin"].apply(this, arguments);
+						statesList[statesList.length - 1] = {_url: this.location.href, _state: state, _title: title};
+						return result;
+					};
+					tmp["__origin"] = windowHistory.replaceState;
+					windowHistory.replaceState = tmp;
+
+					statesList = [];
+				}
+				else if( !fullscreenEnabled && !historyAPISupports ) {
+					if( tmp = windowHistory.pushState["__origin"] ) {//If something goes wrong do not touche windowHistory
+						// switch back to native History API
+						windowHistory.pushState = tmp;
+						windowHistory.replaceState = windowHistory.replaceState["__origin"];
+
+						if( tmp = statesList.length ) {
+							fullScreenExitPopState = true;
+							fullScreenExitHashChange = true;
+							windowHistory.go(-1 * tmp);
+						}
+					}
+
+					historyAPISupports = true;
+					document.removeEventListener("click", documentClickHandler, true);
+				}
+			};
+			_document.addEventListener("webkitfullscreenchange", tmp);
+			_document.addEventListener("webkitfullscreenerror", tmp);
+		}
+	}
+
 	if( __GCC__CUSTOM_PAGE_CHANGE_EVENT__ ) {
+		// NOTE: __GCC__CUSTOM_PAGE_CHANGE_EVENT__ should be after __GCC__FIX_CHROME_FULLSCREEN_BUG__
+
 		var _lastPageUrlWithoutHash = normalizeUrl()._nohash;
 
-		tmp = function() {
+		tmp = function(e) {
 			var currentUrl = normalizeUrl()._nohash;
 
 			if( !_lastPageUrlWithoutHash || (_lastPageUrlWithoutHash != currentUrl) ) {
-				fireStateChange(3, _lastPageUrlWithoutHash, currentUrl);
-
-				_lastPageUrlWithoutHash = currentUrl;
+				fireStateChange(3, _lastPageUrlWithoutHash, _lastPageUrlWithoutHash = currentUrl);
 			}
 		};
 
 		if( __GCC__SUPPORT_IELT9__ && !global.addEventListener ) {
-			global.attachEvent("popstate", tmp, false);
-			global.attachEvent("hashchange", tmp, false);
+			global.attachEvent("popstate", tmp);
+			global.attachEvent("hashchange", tmp);
 		}
 		else {
 			global.addEventListener("popstate", tmp, false);
@@ -1277,8 +1521,8 @@ void function( ){
 	}
 
 	//cleanup
-	tmp = VBInc = createStaticObject = _Object_defineProperties = _unSafeBind = _legacyBrowsers_History =
+	tmp = VBInc = createStaticObject = _Object_defineProperties = _unSafeBind =
 		_legacyBrowsers_HistoryAccessors = LocationAccessors = windowHistoryPrototype = HistoryPrototype =
-			_pushState = _replaceState =
+			_replaceState =
 			null;
-}.call( window );
+}).call( window );

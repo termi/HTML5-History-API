@@ -1,42 +1,56 @@
 ﻿<!DOCTYPE html>
 <html>
     <head>
-	    <!--[if lt IE 8]>
-	    <script src="http://h123.ru/js/a.ielt8.js"></script>
-	    <![endif]-->
-	    <!--[if IE 8]>
-	    <script src="http://h123.ru/js/a.ie8.js"></script>
-	    <![endif]-->
-	    <script src="http://h123.ru/js/a.js"></script>
-	    <script>if(typeof JSON=="undefined")document.write("<script src='" + location.protocol + "//h123.ru/js/libs/json3.min.js'><\/script>")</script>
-        <script src="/__SRC/history.js"></script>
+	    <script>if(typeof JSON=="undefined")document.write("<script src='" + (location.protocol == "file:" ? "http:" : location.protocol) + "//h123.ru/js/libs/json3.min.js'><\/script>")</script>
+		<script>
+			//https://github.com/neovov/Fullscreen-API-Polyfill
+(function(a){function f(b,c){var d=a.createEvent("Event");d.initEvent(b,!0,!1);c.dispatchEvent(d)}function g(d){a[c.enabled]=a[b.enabled];a[c.element]=a[b.element];f(c.events.change,d.target)}function h(a){f(c.events.error,a.target)}var b,e,d={w3:{enabled:"fullscreenEnabled",element:"fullscreenElement",request:"requestFullscreen",exit:"exitFullscreen",events:{change:"fullscreenchange",error:"fullscreenerror"}},webkit:{enabled:"webkitIsFullScreen",element:"webkitCurrentFullScreenElement",request:"webkitRequestFullScreen",
+exit:"webkitCancelFullScreen",events:{change:"webkitfullscreenchange",error:"webkitfullscreenerror"}},moz:{enabled:"mozFullScreen",element:"mozFullScreenElement",request:"mozRequestFullScreen",exit:"mozCancelFullScreen",events:{change:"mozfullscreenchange",error:"mozfullscreenerror"}}},c=d.w3;for(e in d)if(d[e].enabled in a){b=d[e];break}c.enabled in a||!b||(a.addEventListener(b.events.change,g,!1),a.addEventListener(b.events.error,h,!1),a[c.enabled]=a[b.enabled],a[c.element]=a[b.element],a[c.exit]=
+a[b.exit],Element.prototype[c.request]=function(){return this[b.request].apply(this,arguments)});return b})(document);
+		</script>
+		<script>
+		void function(){
+			// This implementation is suck but small and quick
+			if( !Function.prototype.bind ) {
+				var _Array_slice_ = Array.prototype.slice;
+				Function.prototype.bind = function (context) {
+					var args = _Array_slice_.call(arguments, 1), self = this;
+					return function (){ return self.apply(context, args.concat(_Array_slice_.call(arguments, 0))); };
+				};
+			}
+		}.call(null);
+		</script>
+        <script src="../__SRC/history.js"></script>
+        <!--<script src="../__COMPILE/history.ielt9.js"></script>-->
         <script>
             window.onload = function() {
+				var A = 0;
+				var __output = document.getElementById("output");
 
                 // просто функция добавляет DIV с нужным нам текстом
                 function appendText( text ) {
-                    var div = document.createElement( "div" );
-                    div.innerHTML = text;
-                    document.body.appendChild( div );
+					__output.insertAdjacentHTML( "beforeend", text + "<br>" );
                 }
 
                 // функция для ссылок обрабатывается при клике на ссылку
                 function handlerAnchors() {
 
+					var title = this.getAttribute( "title" );
+
+					if(!title)return;
+
                     // заполним хранилище чем нибудь
-                    var state = {
-                        title: this.getAttribute( "title" ),
-                        url: this.href
-                    }
+//                    var state = (++A == 1) || A > 2 ? {
+//                        title: this.getAttribute( "title" ),
+//                        url: this.href
+//                    } : A == 2 ? void 0 : null
+					var state = {
+						A: ++A,
+						title: title
+					};
 
                     // заносим ссылку в историю
-                    history.pushState( state, state.title, this.href );
-
-                    // тут можете вызвать подгруздку данных и т.п.
-                    // ...
-
-                    appendText( '<b>Вы перешли по ссылке:</b> ' +
-                                    '<span style="color: green;">' + this.href + '</span>' );
+                    history.pushState( state, state && state.title, this.href );
 
                     // не даем выполнить действие по умолчанию
                     return false;
@@ -52,23 +66,55 @@
 
                 // вешаем событие на popstate которое срабатывает
                 // при нажатии back/forward в браузере
-                window.onpopstate = function( e ) {
+                window.onpagechange = function( e ) {
 
-                    // просто сообщение
-                    appendText( '<b>Вы вернулись на страницу:</b> ' +
-                        '<span style="color: green;">' + history.location + '</span>' +
-                        '<br/><b>state:</b> <span style="color: green;">' +
-                        JSON.stringify( history.state ) + '</span><br/><br/>' );
+					console.log(e.newUrl, e.oldUrl, e);
 
-                    // тут можете вызвать подгруздку данных и т.п.
-                    // ...
+
+					if( e.popstate ) {
+						// просто сообщение
+						appendText( '<b>Вы вернулись на страницу:</b> ' +
+								'<span style="color: green;">' + e.newUrl + '</span>' +
+								'<br/><b>state:</b> <span style="color: green;">' +
+								JSON.stringify( history.state ) + '</span>' );
+					}
+					else {
+						appendText( '<b>Вы перешли по ссылке:</b> ' +
+								'<span style="color: green;">' + e.newUrl + '</span>' +
+								'<b> state:</b> <span style="color: green;">' +
+								JSON.stringify( history.state ) + '</span>' );
+
+
+
+						// тут можете вызвать подгруздку данных и т.п.
+						// ...
+					}
                 }
             }
         </script>
     </head>
-    <body>
+    <body style="height: 5000px">
         <h1>Переходите по ссылкам, а затем жмите в браузере кнопки back/forward</h1>
-        <a href="/mylink.html" title="Заголовок связанный с ссылкой My Link">My Link</a>
-        <a href="/otherlink.html" title="Заголовок связанный с ссылкой Other Link">Other Link</a>
+        <a href="?mylink.html" title="Заголовок связанный с ссылкой My Link">My Link</a>
+        <a href="?otherlink.html" title="Заголовок связанный с ссылкой Other Link">Other Link</a>
+		<div id="output"></div>
+		<br />
+		<br />
+		<style>
+			body:-webkit-full-screen {
+				overflow: scroll;
+			}
+			body:-moz-full-screen {
+				overflow: scroll;
+			}
+			body:full-screen {
+				overflow: scroll;
+			}
+		</style>
+		<button onclick="document.body.requestFullscreen()">Fullscreen</button>
+		<br />
+		<br />
+		<a href="#SomeDiv">Hash navigation to SomeDiv</a>
+		<div id="SomeDiv" style="background: red;margin-top:1000px;padding-bottom:1000px">Some div</div>
     </body>
 </html>
